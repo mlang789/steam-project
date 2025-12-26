@@ -1,0 +1,26 @@
+# ======================
+# Python / virtual env
+# ======================
+venv/
+big_env/
+__pycache__/
+*.pyc
+
+# ======================
+# Data files
+# ======================
+data/raw/
+data/processed/
+*.csv
+
+# ======================
+# Notebooks
+# ======================
+.ipynb_checkpoints/
+
+# ======================
+# OS / IDE
+# ======================
+.DS_Store
+Thumbs.db
+.vscode/
