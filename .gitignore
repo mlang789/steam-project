@@ -24,3 +24,17 @@ data/processed/
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Reports & generated outputs
+# =========================
+reports/*.csv
+reports/*.txt
+reports/*.joblib
+
+# =========================
+# Notebooks checkpoints
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# OS / Editor

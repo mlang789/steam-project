@@ -40,6 +40,11 @@ model = Pipeline([
 
 model.fit(X_train, y_train)
 
+import joblib
+joblib.dump(model, OUTPUT_DIR / "baseline_model.joblib")
+print("Saved reports/baseline_model.joblib")
+
+
 y_pred = model.predict(X_test)
 y_proba = model.predict_proba(X_test)[:, 1]
 
