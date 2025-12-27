@@ -3,11 +3,14 @@
 ## Project overview
 This project studies Steam game reviews from two complementary perspectives:
 
-1) Sentiment prediction (baseline)  
+1) **Sentiment prediction (baseline)**  
 We show that predicting whether a review is recommended or not from its text is a relatively easy task using classical machine learning methods.
 
-2) Conditional text generation (main contribution)  
-We explore how a language model can generate Steam-like reviews conditioned on a game title and a target rating, and how the quality and controllability of generation depend on prompt design (prompt engineering).
+2) **Conditional text generation (main contribution)**  
+We explore how a language model can generate Steam-like reviews conditioned on a game title and a target rating (derived from Steam’s binary label), and how generation quality and controllability change with:
+- naive prompting
+- prompt engineering
+- **fine-tuning (LoRA) on Steam reviews**
 
 The project follows a progressive methodology: starting from a simple baseline, then moving toward more original generative experiments.
 
@@ -24,6 +27,12 @@ Each review includes:
 
 Game titles are retrieved from the Steam Store API and merged with the review data.
 
+**Rating proxy (coarse):** Steam reviews are binary, so we map:
+- `recommended = 1` → `rating = 9`
+- `recommended = 0` → `rating = 3`
+
+This creates a simple numeric conditioning signal for generation (positive vs negative) while staying realistic (non-extreme).
+
 Raw and processed datasets are not versioned in this repository.  
 They are generated locally using the scripts provided in `src/`.
 
@@ -33,8 +42,8 @@ They are generated locally using the scripts provided in `src/`.
 steam-project/
 ├── src/            Reproducible scripts (data collection, cleaning, baseline)
 ├── notebooks/      EDA and modeling notebooks
-├── genai/          Prompt-based generation experiments
-├── reports/        Saved metrics and evaluation outputs
+├── genai/          Prompting + fine-tuning utilities
+├── reports/        Saved metrics and evaluation outputs (generated locally)
 ├── data/           Generated locally (ignored by git)
 ├── README.md
 ├── requirements.txt
@@ -47,54 +56,84 @@ A simple baseline model is implemented to predict the review recommendation labe
 - TF-IDF text representation (unigrams and bigrams)
 - Logistic regression classifier
 
-Despite its simplicity, this baseline achieves a strong ROC-AUC score, confirming that sentiment information is largely explicit in review text. The baseline is used both as a reference point and as a diagnostic tool for evaluating generated reviews.
+Despite its simplicity, this baseline achieves a strong ROC-AUC score, confirming that sentiment information is largely explicit in review text. The baseline is used both as a reference point and as a diagnostic tool for evaluating generated reviews (sentiment compliance).
 
 ---
 
 ## Conditional review generation
 The main contribution of this project is the study of conditional review generation.
 
-Given a game title and a coarse numeric rating derived from the recommendation label, we generate synthetic Steam-like user reviews using a large language model.
+Given a game title and a coarse numeric rating derived from the recommendation label, we generate synthetic Steam-like user reviews using a language model.
 
-We compare two prompting strategies:
-- naive prompting
-- prompt engineering with structured constraints (length, tone, balance between positive and negative points)
+We compare multiple strategies:
 
+### 1) Naive prompting
+A single-sentence instruction:
+- *"Write a Steam user review for the game X with rating Y/10."*
+
+### 2) Prompt engineering
+A structured prompt with explicit constraints (length, tone, no spoilers, etc.).  
 Prompt experiments and qualitative examples are documented in `genai/prompts.md`.
+
+### 3) Fine-tuning (LoRA, Option A)
+We fine-tune a small open-source model using **LoRA in 4-bit** (Google Colab GPU).
+
+**Important design choice (Option A):** fine-tuning focuses on **Steam-like style + target sentiment** (via rating 3 vs 9) without enforcing strict format constraints during training (real Steam reviews do not reliably follow constraints such as exact word count or exact “2 pros / 1 con” structure).  
+Those constraints are instead applied at inference time via prompt engineering and evaluated separately.
+
+The fine-tuning dataset is built from real reviews as prompt → completion pairs:
+- prompt: “Write a positive/negative Steam review for game X (rating Y/10)”
+- completion: the real Steam review text
+
+Dataset builder:
+- `genai/make_dataset.py` → outputs `reports/sft_train.jsonl` and `reports/sft_val.jsonl`
 
 ---
 
 ## Evaluation
-Generated reviews are evaluated using a combination of:
-- automatic evaluation, based on sentiment compliance measured with the baseline classifier
-- simple structural checks (word count constraints)
-- qualitative analysis of realism and style
+Generated reviews are evaluated using:
+- **automatic sentiment compliance**, measured with the baseline classifier (TF-IDF + LogisticRegression)
+- **simple structural checks** (e.g., word count constraints)
+- qualitative analysis of realism, repetitiveness, and Steam-like style
 
-Due to the generative nature of the task, evaluation is intentionally lightweight and exploratory.
+Evaluation script:
+- `genai/evaluate_generations.py`  
+Outputs:
+- `reports/generation_eval_rows.csv`
+- `reports/generation_eval_summary.csv`
 
 ---
 
 ## How to run the project
 
-Install dependencies:
+### Install dependencies
 pip install -r requirements.txt
 
-Collect and clean data:
+### Collect and clean data
 python src/collect_reviews.py
 python src/clean_reviews.py
+python src/enrich_games.py
+python src/build_reviews_with_title.py
 
-Train the baseline model:
+### Train the baseline model
 python src/train_baseline_textclf.py
 
-Build generation prompts:
+### Build a prompt batch for generation
 python genai/build_prompt_batch.py
 
-Evaluate generated reviews:
+Fill `generated_text` in `reports/prompt_batch.csv` manually (or via an external generation workflow).
+
+### Evaluate generated reviews
 python genai/evaluate_generations.py
+
+### Build fine-tuning dataset (SFT)
+python genai/make_dataset.py
+
+Fine-tuning is performed in Google Colab (GPU) using LoRA/4-bit on a small open-source model (e.g., TinyLlama 1.1B Chat). The notebook/workflow can be reproduced from the commands and scripts in this repository.
 
 ---
 
 ## Notes
 - The goal of generation is stylistic and sentiment coherence rather than factual accuracy.
-- The project focuses on methodological comparison rather than application deployment.
-- Fine-tuning of a language model is considered as potential future work.
+- Evaluation is intentionally lightweight and exploratory (small-scale automatic checks + qualitative inspection).
+- Fine-tuning is done with a pragmatic setup (LoRA + 4-bit quantization) suitable for student GPU environments (Colab).
