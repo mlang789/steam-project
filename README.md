@@ -92,15 +92,27 @@ Dataset builder:
 
 ## Evaluation
 Generated reviews are evaluated using:
-- **automatic sentiment compliance**, measured with the baseline classifier (TF-IDF + LogisticRegression)
+- **automatic sentiment compliance**, measured with a baseline classifier
 - **simple structural checks** (e.g., word count constraints)
 - qualitative analysis of realism, repetitiveness, and Steam-like style
 
+### Automatic judges (TF-IDF vs SBERT)
+We used two lightweight automatic sentiment judges:
+- **TF-IDF + LogisticRegression** (bag-of-words baseline)
+- **SBERT embeddings + LogisticRegression** (more robust to paraphrasing / style shifts)
+
+On a balanced benchmark (25 positive prompts + 25 negative prompts), the fine-tuned model (`finetuned_v4`) reached:
+- **Word-count compliance (100–140 words):** 0.72 (mean ~112 words)
+- **Sentiment compliance (TF-IDF judge):** 0.54
+- **Sentiment compliance (SBERT judge):** 0.60
+
+This highlights both (i) the impact of decoding/format fixes on length control and (ii) the sensitivity of automatic evaluation: a bag-of-words judge can underestimate sentiment when generations use mixed phrasing, while embedding-based evaluation better captures overall meaning.
+
 Evaluation script:
 - `genai/evaluate_generations.py`  
-Outputs:
-- `reports/generation_eval_rows.csv`
-- `reports/generation_eval_summary.csv`
+Outputs (prefix-based):
+- `reports/generation_eval_*_rows.csv`
+- `reports/generation_eval_*_summary.csv`
 
 ---
 
@@ -115,7 +127,7 @@ python src/clean_reviews.py
 python src/enrich_games.py
 python src/build_reviews_with_title.py
 
-### Train the baseline model
+### Train the baseline model (TF-IDF judge)
 python src/train_baseline_textclf.py
 
 ### Build a prompt batch for generation
@@ -123,8 +135,10 @@ python genai/build_prompt_batch.py
 
 Fill `generated_text` in `reports/prompt_batch.csv` manually (or via an external generation workflow).
 
-### Evaluate generated reviews
-python genai/evaluate_generations.py
+### Evaluate generated reviews (TF-IDF or SBERT judge)
+python genai/merge_for_eval.py
+python genai/evaluate_generations.py --input reports/prompt_batch_all.csv --prefix generation_eval_v4
+python genai/evaluate_generations.py --input reports/prompt_batch_all.csv --prefix generation_eval_v4_sbert
 
 ### Build fine-tuning dataset (SFT)
 python genai/make_dataset.py
@@ -135,5 +149,5 @@ Fine-tuning is performed in Google Colab (GPU) using LoRA/4-bit on a small open-
 
 ## Notes
 - The goal of generation is stylistic and sentiment coherence rather than factual accuracy.
-- Evaluation is intentionally lightweight and exploratory (small-scale automatic checks + qualitative inspection).
-- Fine-tuning is done with a pragmatic setup (LoRA + 4-bit quantization) suitable for student GPU environments (Colab).
+- Evaluation is intentionally lightweight and exploratory (automatic checks + qualitative inspection).
+- Fine-tuning uses a pragmatic setup (LoRA + 4-bit quantization) suitable for student GPU environments (Colab).

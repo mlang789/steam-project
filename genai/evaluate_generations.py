@@ -1,29 +1,29 @@
 # genai/evaluate_generations.py
 """
-Evaluate generated Steam reviews in reports/prompt_batch.csv using:
+Evaluate generated Steam reviews using:
 - a baseline sentiment classifier (TF-IDF + LogisticRegression)
 - simple constraint checks (word length)
 
 Inputs:
-- reports/prompt_batch.csv (must contain: rating, method, generated_text)
+- --input CSV (must contain: rating, method, generated_text)
 - reports/baseline_model.joblib
 
-Outputs:
-- reports/generation_eval_rows.csv (row-level results)
-- reports/generation_eval_summary.csv (method-level summary)
+Outputs (controlled by --prefix):
+- reports/<prefix>_rows.csv (row-level results)
+- reports/<prefix>_summary.csv (method-level summary)
 """
 
+from sbert_embedder import SBERTEmbedder  # needed for joblib unpickling
+
 from pathlib import Path
+import argparse
 
 import pandas as pd
 import joblib
+import csv
 
 
-PROMPT_BATCH_PATH = Path("reports/prompt_batch.csv")
-MODEL_PATH = Path("reports/baseline_model.joblib")
-
-OUT_ROWS_PATH = Path("reports/generation_eval_rows.csv")
-OUT_SUMMARY_PATH = Path("reports/generation_eval_summary.csv")
+MODEL_PATH = Path("reports/baseline_model_sbert.joblib")
 
 # Engineered constraint in your prompts
 MIN_WORDS = 100
@@ -38,21 +38,38 @@ def count_words(text: str) -> int:
 
 
 def main() -> None:
-    if not PROMPT_BATCH_PATH.exists():
-        raise FileNotFoundError(f"Missing file: {PROMPT_BATCH_PATH}")
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--input",
+        type=str,
+        default="reports/prompt_batch_all.csv",
+        help="Input CSV containing prompts and generated_text.",
+    )
+    parser.add_argument(
+        "--prefix",
+        type=str,
+        default="generation_eval",
+        help="Prefix for output files in reports/.",
+    )
+    args = parser.parse_args()
+
+    input_path = Path(args.input)
+    if not input_path.exists():
+        raise FileNotFoundError(f"Missing input file: {input_path}")
+
     if not MODEL_PATH.exists():
         raise FileNotFoundError(
-            f"Missing baseline model: {MODEL_PATH}. Run src/train_baseline_textclf.py and save it."
+            f"Missing baseline model: {MODEL_PATH}. Run src/train_baseline_textclf.py first."
         )
 
-    df = pd.read_csv(PROMPT_BATCH_PATH)
+    # engine="python" is safer when cells contain newlines
+    df = pd.read_csv(input_path, encoding="utf-8", engine="python")
 
     required_cols = {"rating", "method", "generated_text"}
     missing = required_cols - set(df.columns)
     if missing:
-        raise ValueError(f"prompt_batch.csv missing columns: {sorted(missing)}")
+        raise ValueError(f"Input CSV missing columns: {sorted(missing)}")
 
-    # Keep only rows where you actually filled a generation
     df["generated_text"] = df["generated_text"].fillna("").astype(str)
     used = df[df["generated_text"].str.strip().str.len() > 0].copy()
 
@@ -75,15 +92,18 @@ def main() -> None:
     # Compliance: predicted label matches target
     used["compliant"] = (used["pred_label"] == used["target_label"]).astype(int)
 
-    # Word length constraints (mainly relevant for engineered prompts, but we compute for all)
+    # Word length constraints
     used["word_count"] = used["generated_text"].apply(count_words)
-    used["length_ok_100_140"] = ((used["word_count"] >= MIN_WORDS) & (used["word_count"] <= MAX_WORDS)).astype(int)
+    used["length_ok_100_140"] = (
+        (used["word_count"] >= MIN_WORDS) & (used["word_count"] <= MAX_WORDS)
+    ).astype(int)
 
-    # Save row-level
-    OUT_ROWS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    used.to_csv(OUT_ROWS_PATH, index=False, encoding="utf-8")
+    out_rows_path = Path("reports") / f"{args.prefix}_rows.csv"
+    out_summary_path = Path("reports") / f"{args.prefix}_summary.csv"
 
-    # Summary by method
+    out_rows_path.parent.mkdir(parents=True, exist_ok=True)
+    used.to_csv(out_rows_path, index=False, encoding="utf-8", quoting=csv.QUOTE_ALL)
+
     summary = (
         used.groupby("method", dropna=False)
         .agg(
@@ -94,20 +114,13 @@ def main() -> None:
             mean_word_count=("word_count", "mean"),
         )
         .reset_index()
+        .sort_values("n", ascending=False)
     )
+    summary.to_csv(out_summary_path, index=False, encoding="utf-8", quoting=csv.QUOTE_ALL)
 
-    summary.to_csv(OUT_SUMMARY_PATH, index=False, encoding="utf-8")
-
-    # Print a readable summary
     print("=== Generation evaluation summary (by method) ===")
     print(summary.to_string(index=False))
-    print(f"\nSaved:\n- {OUT_ROWS_PATH}\n- {OUT_SUMMARY_PATH}")
-
-    # Optional: show the filled rows quickly
-    print("\n=== Filled rows preview ===")
-    cols_preview = ["title", "rating", "method", "word_count", "pred_proba_recommended", "compliant"]
-    cols_preview = [c for c in cols_preview if c in used.columns]
-    print(used[cols_preview].head(20).to_string(index=False))
+    print(f"\nSaved:\n- {out_rows_path}\n- {out_summary_path}")
 
 
 if __name__ == "__main__":
