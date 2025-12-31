@@ -92,7 +92,7 @@ Dataset builder:
 
 ## Evaluation
 Generated reviews are evaluated using:
-- **automatic sentiment compliance**, measured with a baseline classifier
+- **automatic sentiment compliance**, measured with a lightweight classifier
 - **simple structural checks** (e.g., word count constraints)
 - qualitative analysis of realism, repetitiveness, and Steam-like style
 
@@ -101,12 +101,27 @@ We used two lightweight automatic sentiment judges:
 - **TF-IDF + LogisticRegression** (bag-of-words baseline)
 - **SBERT embeddings + LogisticRegression** (more robust to paraphrasing / style shifts)
 
-On a balanced benchmark (25 positive prompts + 25 negative prompts), the fine-tuned model (`finetuned_v4`) reached:
+**Balanced benchmark (v4, 25 positive + 25 negative prompts):**
 - **Word-count compliance (100–140 words):** 0.72 (mean ~112 words)
 - **Sentiment compliance (TF-IDF judge):** 0.54
 - **Sentiment compliance (SBERT judge):** 0.60
 
 This highlights both (i) the impact of decoding/format fixes on length control and (ii) the sensitivity of automatic evaluation: a bag-of-words judge can underestimate sentiment when generations use mixed phrasing, while embedding-based evaluation better captures overall meaning.
+
+### Large-scale evaluation (v6_long, engineered prompts only)
+We then ran a larger generation/evaluation to reduce variance and get stable estimates.
+
+**Fine-tuned model (`finetuned_v6_long`), n = 4080 engineered prompts:**
+- **Sentiment compliance (SBERT judge):** 0.866
+- **Mean predicted probability (recommended):** 0.856
+- **Mean word count:** 128.5
+- **Word-count compliance (100–140 words):** 0.506
+
+**Length diagnostics (v6_long rows):**
+- Share `< 100` words: 0.113  
+- Share `> 140` words: 0.382  
+
+This confirms that fine-tuning strongly improves sentiment controllability at scale, while length control remains a decoding/prompting challenge (many generations overshoot 140 words).
 
 Evaluation script:
 - `genai/evaluate_generations.py`  
@@ -151,3 +166,4 @@ Fine-tuning is performed in Google Colab (GPU) using LoRA/4-bit on a small open-
 - The goal of generation is stylistic and sentiment coherence rather than factual accuracy.
 - Evaluation is intentionally lightweight and exploratory (automatic checks + qualitative inspection).
 - Fine-tuning uses a pragmatic setup (LoRA + 4-bit quantization) suitable for student GPU environments (Colab).
+- Further improvements would focus on tighter length control (e.g., decoding constraints such as `min_new_tokens` / lower `max_new_tokens`, or post-processing for strict word-count compliance).

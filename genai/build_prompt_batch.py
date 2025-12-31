@@ -24,7 +24,7 @@ OUT_DIR = Path("reports")
 OUT_PATH = OUT_DIR / "prompt_batch.csv"
 
 # How many prompts per game per rating (positive/negative)
-N_PER_GAME_PER_RATING = 25
+N_PER_GAME_PER_RATING = 1000
 
 # Ratings used in your dataset
 POS_RATING = 9
@@ -51,7 +51,8 @@ def make_engineered_prompt(title: str, rating: int) -> str:
         f"Target rating: {rating}/10.",
         "",
         "Constraints:",
-        "- Length: 100 to 140 words",
+        "- Length: 120 to 140 words (aim for ~125-135)",
+
         constraint_line,
         "- Casual, honest tone",
         "- No spoilers",

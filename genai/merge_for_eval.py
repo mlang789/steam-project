@@ -15,7 +15,7 @@ import pandas as pd
 
 
 BASE_PATH = Path("reports/prompt_batch.csv")
-FINETUNED_PATH = Path("reports/prompt_batch_finetuned_balanced_50_v4.csv")
+FINETUNED_PATH = Path("reports/prompt_batch_finetuned_v7.csv")
 OUT_PATH = Path("reports/prompt_batch_all.csv")
 
 REQUIRED_COLS = ["app_id", "title", "rating", "method", "prompt", "generated_text"]
