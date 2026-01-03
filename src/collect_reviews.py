@@ -6,13 +6,25 @@ import requests
 from tqdm import tqdm
 
 # A small starter list of well-known Steam app IDs (you can change them anytime)
-APP_IDS = [
+BASE_APP_IDS = [
     570,      # Dota 2
     730,      # Counter-Strike 2
     440,      # Team Fortress 2
     1091500,  # Cyberpunk 2077
     1245620,  # Elden Ring
 ]
+
+NEGATIVE_APP_IDS = [
+    1517290,  # Battlefield 2042
+    1599340,  # The Day Before
+    2357570,  # Overwatch 2
+    1272080,  # Payday 3
+    1547000,  # GTA Trilogy Definitive Edition
+]
+
+
+# Combine lists (structure unchanged)
+APP_IDS = BASE_APP_IDS + NEGATIVE_APP_IDS
 
 REVIEWS_PER_GAME = 2000     # how many reviews to collect per game
 REQUEST_SLEEP_SEC = 1.0     # sleep between requests to avoid spamming
