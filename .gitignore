@@ -5,6 +5,7 @@ venv/
 big_env/
 __pycache__/
 *.pyc
+env/
 
 # ======================
 # Data files
@@ -35,6 +36,9 @@ reports/*.joblib
 # Notebooks checkpoints
 # =========================
 .ipynb_checkpoints/
+*.ipynb
 
 # =========================
 # OS / Editor
+
+dump/
