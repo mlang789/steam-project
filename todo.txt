@@ -1,0 +1,14 @@
+--> evaluer les perfs par un LLM avancé pour (prompt naif, 
+prompt engineering et finetuning)
+
+[ ] Calculer le score de Diversité (Self-BLEU) : 
+Vérifier si l'IA ne génère pas toujours la même review pour un jeu donné. 
+Si le score est trop bas, l'IA "radote" (mode collapse).
+
+[ ] Mesure d'Hallucination : Vérifier si l'IA invente des fonctionnalités 
+qui n'existent pas dans le jeu (ex: parler de "multijoueur" pour un jeu purement solo).
+
+[ ] Comparaison Humain vs IA : Créer un petit test (Google Form) avec 10 reviews 
+(5 vraies, 5 générées) et voir si des utilisateurs arrivent à deviner lesquelles sont fausses.
+--> ajouter à la pres  
+

@@ -13,6 +13,6 @@ class SBERTEmbedder:
         emb = self.model.encode(
             list(X),
             normalize_embeddings=True,
-            show_progress_bar=False,
+            show_progress_bar=True,
         )
         return np.asarray(emb)

@@ -1,6 +1,7 @@
 from pathlib import Path
 import joblib
 import pandas as pd
+from sklearn.svm import LinearSVC
 
 from sbert_embedder import SBERTEmbedder
 
@@ -19,9 +20,12 @@ MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 
 def main():
+    print("Chargement des données...")
     df = pd.read_csv(DATA_PATH)
     df["review_text"] = df["review_text"].fillna("").astype(str)
     df = df[df["review_text"].str.len() >= 30].copy()
+
+    print(f"Données chargées : {len(df)} lignes.")
 
     X = df["review_text"]
     y = df["recommended"].astype(int)
@@ -32,20 +36,26 @@ def main():
 
     pipe = Pipeline([
         ("embed", SBERTEmbedder(MODEL_NAME)),
-        ("clf", LogisticRegression(max_iter=2000))
+        ("clf", LinearSVC(class_weight="balanced", dual="auto", max_iter=2000))
     ])
 
+    print("Démarrage de l'entraînement (Calcul des embeddings + SVM)...")
+    
     pipe.fit(X_train, y_train)
+    print("Entraînement terminé !")
 
-    proba = pipe.predict_proba(X_test)[:, 1]
-    pred = (proba >= 0.5).astype(int)
+    print("Prédiction sur le test set...")
 
-    auc = roc_auc_score(y_test, proba)
+    scores = pipe.decision_function(X_test)
+    pred = (scores >= 0).astype(int)
+
+    auc = roc_auc_score(y_test, scores)
+
     print("ROC-AUC:", auc)
     print(classification_report(y_test, pred, digits=4))
 
-    joblib.dump(pipe, OUT_DIR / "baseline_model_sbert.joblib")
-    print("Saved:", OUT_DIR / "baseline_model_sbert.joblib")
+    joblib.dump(pipe, OUT_DIR / "baseline_model_sbert_svm.joblib")
+    print("Saved:", OUT_DIR / "baseline_model_sbert_svm.joblib")
 
 if __name__ == "__main__":
     main()
