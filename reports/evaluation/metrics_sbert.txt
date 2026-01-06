@@ -1,0 +1,13 @@
+Model: sbert
+Threshold: 0 (implicit)
+ROC-AUC: 0.901622
+
+Classification report:
+              precision    recall  f1-score   support
+
+           0     0.5354    0.8229    0.6487      1084
+           1     0.9450    0.8100    0.8723      4074
+
+    accuracy                         0.8127      5158
+   macro avg     0.7402    0.8164    0.7605      5158
+weighted avg     0.8589    0.8127    0.8253      5158

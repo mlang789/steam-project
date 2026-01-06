@@ -11,4 +11,3 @@ qui n'existent pas dans le jeu (ex: parler de "multijoueur" pour un jeu purement
 [ ] Comparaison Humain vs IA : Créer un petit test (Google Form) avec 10 reviews 
 (5 vraies, 5 générées) et voir si des utilisateurs arrivent à deviner lesquelles sont fausses.
 --> ajouter à la pres  
-
