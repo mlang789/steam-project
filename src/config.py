@@ -1,48 +1,41 @@
+# FILE: src/config.py
+
 from pathlib import Path
 
 # --- Configuration des Jeux ---
-# Jeux pour l'ENTRAÎNEMENT (Train + Test split)
-TRAIN_APP_IDS = [
-    570,      # Dota 2
-    730,      # Counter-Strike 2
-    440,      # Team Fortress 2
-    1091500,  # Cyberpunk 2077
-    1245620,  # Elden Ring
-    1517290,  # Battlefield 2042
-    1599340,  # The Day Before
-    2357570,  # Overwatch 2
-    1272080,  # Payday 3
-    1547000,  # GTA Trilogy Definitive Edition
-]
+# (Tes listes TRAIN_APP_IDS et VALIDATION_APP_IDS restent inchangées ici)
+TRAIN_APP_IDS = [570, 730, 440, 1091500, 1245620, 1517290, 1599340, 2357570, 1272080, 1547000]
+VALIDATION_APP_IDS = [548430, 892970, 1097840, 1940340]
 
-# Jeux pour la validation (Totalement invisibles au modèle pendant l'entraînement)
-VALIDATION_APP_IDS = [
-    548430,   # Deep Rock Galactic
-    892970,   # Valheim
-    1097840,  # Halo Infinite
-    1940340,  # Redfall
-]
-
-# --- Chemins de fichiers ---
-DATA_DIR = Path("data")
+# --- Chemins de base ---
+# Astuce : On remonte d'un cran car config.py est maintenant dans src/
+PROJECT_ROOT = Path(__file__).resolve().parent.parent 
+DATA_DIR = PROJECT_ROOT / "data"
 RAW_DIR = DATA_DIR / "raw"
 PROCESSED_DIR = DATA_DIR / "processed"
-REPORTS_DIR = Path("reports")
+EXTERNAL_OUTPUTS_DIR = DATA_DIR / "outputs_gen_ai_models" # On garde ça
+
+# --- Organisation de Reports (Outputs) ---
+REPORTS_DIR = PROJECT_ROOT / "reports"
+MODELS_DIR = REPORTS_DIR / "models"           # Pour les .joblib
+GENAI_INPUTS_DIR = REPORTS_DIR / "genai_inputs" # Pour les JSONL et Prompts
+EVAL_DIR = REPORTS_DIR / "evaluation"         # Pour les résultats
 
 # Création automatique des dossiers
-for d in [RAW_DIR, PROCESSED_DIR, REPORTS_DIR]:
+for d in [RAW_DIR, PROCESSED_DIR, EXTERNAL_OUTPUTS_DIR, MODELS_DIR, GENAI_INPUTS_DIR, EVAL_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
-# Dictionnaire pour mapper les noms de fichiers selon le mode
+# --- Dictionnaire de fichiers (Mapping) ---
+# Changement ici : 'games' devient 'titles'
 FILES = {
     "train": {
         "raw_reviews": RAW_DIR / "reviews_raw_train.csv",
-        "games": PROCESSED_DIR / "games_train.csv",
+        "titles": PROCESSED_DIR / "titles_train.csv",    # RENOMMÉ
         "final": PROCESSED_DIR / "dataset_train.csv"
     },
     "validation": {
         "raw_reviews": RAW_DIR / "reviews_raw_val.csv",
-        "games": PROCESSED_DIR / "games_val.csv",
+        "titles": PROCESSED_DIR / "titles_val.csv",      # RENOMMÉ
         "final": PROCESSED_DIR / "dataset_val.csv"
     }
 }

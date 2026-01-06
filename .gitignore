@@ -28,16 +28,16 @@ Thumbs.db
 
 # Reports & generated outputs
 # =========================
-reports/*.csv
-reports/*.txt
-reports/*.joblib
+*.csv
+*.txt
+*.joblib
+*.jsonl
 
 # =========================
 # Notebooks checkpoints
 # =========================
 .ipynb_checkpoints/
 *.ipynb
-
 # =========================
 # OS / Editor
 

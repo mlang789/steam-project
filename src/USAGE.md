@@ -1,158 +1,164 @@
-# Documentation du Projet : Steam Reviews GenAI
+# Documentation Complète du Projet : Steam Reviews GenAI
 
-Ce projet est un pipeline complet de Machine Learning et de Generative AI. Il permet de :
-
-1. **Collecter** des données réelles de Steam.
-2. **Entraîner** un "Juge" (Classifieur) capable de noter la qualité d'une review.
-3. **Préparer** le terrain pour générer de fausses reviews via une IA (Fine-tuning).
+Ce projet est un pipeline complet de Machine Learning et d'IA Générative.
+Il est structuré en 3 grandes phases :
+1.  **Data Engineering** : Collecte et préparation des données Steam.
+2.  **Juge IA** : Entraînement de classifieurs (SBERT & TF-IDF) pour évaluer la qualité.
+3.  **GenAI** : Fine-tuning d'un LLM et génération de reviews.
 
 ---
 
-## Structure des Dossiers (Générée automatiquement)
+## Structure du Projet
 
-Une fois le pipeline exécuté, vos dossiers ressembleront à ceci :
+Voici l'organisation des fichiers :
 
 ```text
 steam-project/
-├── data/
-│   ├── raw/           # Données brutes (JSON/CSV venant de l'API)
-│   └── processed/     # Données nettoyées, fusionnées et prêtes pour le ML
-├── reports/           # Modèles entraînés (.joblib), métriques et fichiers de prompts
-├── src/               # Scripts de collecte et d'entraînement du Juge
-└── genai/             # Scripts pour la génération et l'évaluation LLM
+├── data/                      # Stockage des données
+│   ├── raw/                   # JSON/CSV bruts de l'API Steam
+│   ├── processed/             # Données nettoyées (dataset_train.csv, titles.csv)
+│   └── outputs_gen_ai_models/ # Réception des fichiers venant de Colab
+├── reports/                   # Artefacts et Résultats
+│   ├── models/                # Modèles du Juge (.joblib)
+│   ├── genai_inputs/          # Fichiers d'entrée pour le LLM (prompts, jsonl)
+│   └── evaluation/            # Rapports de performance
+├── src/                       # Code Source
+│   ├── config.py              # Configuration globale
+│   ├── utils.py               # Utilitaires (SBERT, etc.)
+│   ├── data/                  # Pipeline ETL (Extract-Transform-Load)
+│   ├── judge/                 # Classification (Le Juge)
+│   └── genai/                 # Pipeline genai (Entrainement & Inférence)
 ```
 
 ---
 
-## Phase 1 : Pipeline de Données (`src/`)
+## Phase 1 : Pipeline de Données
 
-Cette phase transforme les données brutes d'Internet en un dataset propre.
+Cette phase transforme les données brutes d'Internet en un dataset propre pour le Machine Learning.
 
-### Étape 1 : Collecte (`01_collect_data.py`)
+### Étape 1 : Collecte (`01_collect.py`)
 
 Télécharge les reviews et les titres des jeux depuis l'API Steam.
 
-* **Commandes :**
+*   **Commandes :**
+    ```bash
+    python src/data/01_collect.py train
+    python src/data/01_collect.py validation
+    ```
+*   **Outputs :**
+    *   `data/raw/reviews_raw_train.csv`
+    *   `data/processed/titles_train.csv` (Titres des jeux)
 
-```bash
-python src/01_collect_data.py train
-python src/01_collect_data.py validation
-```
+### Étape 2 : Construction du Dataset (`02_process.py`)
 
-* **Inputs :**
+Nettoie les textes, fusionne avec les titres, et convertit le vote (recommandé/non) en note (3/10 ou 9/10).
 
-  * Liste d'IDs de jeux définie dans `src/config.py`.
-  * Internet (API Steam).
-
-* **Outputs :**
-
-  * `data/raw/reviews_raw_train.csv` : Reviews brutes pour l'entraînement.
-  * `data/processed/games_train.csv` : Titres des jeux d'entraînement.
-  * *(Idem pour validation avec le suffixe `_val.csv`)*.
-
-### Étape 2 : Construction du Dataset (`02_build_dataset.py`)
-
-Nettoie les textes (suppression des doublons, textes trop courts), fusionne avec les titres, et convertit le vote (recommandé/non) en note (3/10 ou 9/10).
-
-* **Commandes :**
-
-```bash
-python src/02_build_dataset.py train
-python src/02_build_dataset.py validation
-```
-
-* **Inputs :**
-
-  * `data/raw/reviews_raw_*.csv`
-  * `data/processed/games_*.csv`
-
-* **Outputs :**
-
-  * `data/processed/dataset_train.csv` : **Le fichier maître** pour tout le projet.
-  * `data/processed/dataset_val.csv` : Pour tests sur des jeux jamais vus pendant l’entraînement.
+*   **Commandes :**
+    ```bash
+    python src/data/02_process.py train
+    python src/data/02_process.py validation
+    ```
+*   **Outputs :**
+    *   `data/processed/dataset_train.csv` : **Le fichier maître**.
+    *   `data/processed/dataset_val.csv` : Pour tests finaux.
 
 ---
 
-## Phase 2 : Entraînement du Juge (`src/`)
+## Phase 2 : Entraînement du Juge   
 
-Cette phase crée une IA capable de dire si une review est positive ou négative.
-Le modèle sera évalué uniquement sur la **validation finale**, qui contient des jeux **jamais vus** par le modèle.
+Création d'une IA capable de dire si une review est positive ou négative. Nous entraînons deux versions pour comparer l'évaluation.
 
-### Étape 3 : Entraînement (`03_train_judge.py`)
+### Étape 3 : Entraînement (`03_train.py`)
 
-Le script supporte deux modèles : TF-IDF (baseline) ou SBERT (recommandé).
-Un split interne 80/20 par jeux est utilisé **uniquement pour calculer le seuil F1 optimal**. Ensuite, le modèle est ré-entraîné sur tout le dataset TRAIN.
+#### Option A : Modèle SBERT (Recommandé)
+Capture la sémantique (le sens) des phrases.
 
-#### Option A : Modèle TF-IDF (Baseline)
+*   **Commande :**
+    ```bash
+    python src/judge/03_train.py --model sbert
+    ```
+*   **Output :** `reports/models/judge_model_sbert.joblib`
 
-Rapide, basé sur les mots-clés.
+#### Option B : Modèle TF-IDF (Baseline)
+Se base sur les mots-clés. Utile pour vérifier si le LLM "triche" en utilisant juste des mots positifs.
 
-* **Commande :**
-
-```bash
-python src/03_train_judge.py --model tfidf
-```
-
-* **Inputs :** `data/processed/dataset_train.csv`
-* **Outputs :** `reports/judge_model_tfidf.joblib`
-
-#### Option B : Modèle SBERT (Recommandé)
-
-Comprend le sens des phrases (sémantique), plus fiable pour l’évaluation de textes générés.
-
-* **Commande :**
-
-```bash
-python src/03_train_judge.py --model sbert
-```
-
-* **Inputs :** `data/processed/dataset_train.csv`
-* **Outputs :** `reports/judge_model_sbert.joblib`
-
-> Le **seuil F1 macro** est calculé automatiquement sur un split interne (80/20 par jeux) et utilisé pour l’évaluation finale sur le dataset de validation. Le seuil est sauvegardé avec le modèle.
+*   **Commande :**
+    ```bash
+    python src/judge/03_train.py --model tfidf
+    ```
+*   **Output :** `reports/models/judge_model_tfidf.joblib`
 
 ---
 
-## Phase 3 : Generative AI (`genai/`)
+## Phase 3 : Generative AI (Local & Colab)
 
-Cette phase prépare les instructions pour l'IA générative et évalue le résultat.
+Cette phase est hybride : préparation en local, entraînement/génération sur Google Colab (GPU), puis retour en local pour l'évaluation.
 
-### Étape 4 : Préparation des Prompts & Fine-Tuning
+### Étape 4 : Préparation des Données (Local)
 
-#### A. Création des Prompts "Zero-Shot"
+#### A. Création des Prompts "Zero-Shot" (`04_generate_prompts.py`)
+Génère les instructions que le LLM devra suivre (Naive vs Engineered).
 
-Génère un CSV contenant des instructions pour l’IA (ex: *"Write a review for Elden Ring..."*).
+*   **Commande :**
+    ```bash
+    python src/genai/04_generate_prompts.py
+    ```
+*   **Output :** `reports/genai_inputs/prompt_batch.csv`
 
-* **Script :** `python genai/build_prompt_batch.py`
-* **Input :** `data/processed/dataset_train.csv`
-* **Output :** `reports/prompt_batch.csv`
+#### B. Préparation du Dataset de Fine-Tuning (`05_prepare_training.py`)
+Transforme les vraies reviews en format JSONL pour ré-entraîner le LLM (Instruction Tuning).
 
-#### B. Préparation du Dataset de Fine-Tuning (SFT)
+*   **Commande :**
+    ```bash
+    python src/genai/05_prepare_training.py
+    ```
+*   **Output :** `reports/genai_inputs/sft_train.jsonl`
 
-Prépare des fichiers JSONL pour ré-entraîner un modèle sur le style Steam.
+---
 
-* **Script :** `python genai/make_dataset.py`
-* **Input :** `data/processed/dataset_train.csv`
-* **Output :** `reports/sft_train.jsonl`
+### Étape 5 : Exécution sur Google Colab (GPU requis) 
 
-### Étape 5 : Génération (Externe)
+Utilisez les fichiers générés à l'étape 4.
 
-Remplir la colonne `generated_text` avec les reviews générées par l’IA (manuellement ou via Colab).
+#### Notebook 1 : Entraînement (Fine-Tuning LoRA)
+1.  **Upload :** Déposez `reports/genai_inputs/sft_train.jsonl` sur le Colab.
+2.  **Entraînement :** Lancez le notebook pour fine-tuner `TinyLlama-1.1B`.
+3.  **Sauvegarde :** Récupérez le dossier de l'adaptateur LoRA sur votre Google Drive.
 
-* **Output attendu :** `reports/prompt_batch_filled.csv`
+#### Notebook 2 : Inférence & Génération
+1.  **Upload :** Déposez `reports/genai_inputs/prompt_batch.csv` sur le Colab.
+2.  **Génération :** Lancez le notebook pour générer les 3 fichiers CSV :
+    *   `generated_reviews_naive.csv`
+    *   `generated_reviews_engineered.csv`
+    *   `generated_reviews_finetuned.csv`
+3.  **Download :** Téléchargez ces 3 fichiers sur votre ordinateur local.
 
-### Étape 6 : Évaluation Finale
+---
 
-Le "Juge" (SBERT ou TF-IDF) note vos reviews générées.
+### Étape 6 : Consolidation et Évaluation (Local)
 
-* **Script :** `python genai/evaluate_generations.py`
-* **Inputs :**
+#### C. Fusion des Résultats (`06_merge_outputs.py`)
+1.  **Action :** Placez les 3 fichiers CSV du Colab dans `data/outputs_genai_models/`.
+2.  **Commande :**
+    ```bash
+    python src/genai/06_merge_outputs.py
+    ```
+3.  **Output :** `reports/genai_inputs/prompt_batch_filled.csv`
 
-  * `reports/prompt_batch_filled.csv`
-  * `reports/judge_model_sbert.joblib`
-* **Outputs :**
+#### D. Évaluation Finale (`07_evaluate.py`)
+Le "Juge" note automatiquement vos reviews générées. Vous pouvez choisir quel juge utiliser.
 
-  * `reports/generation_eval_summary.csv` : Tableau des scores (consigne, positivité, etc.)
+*   **Avec le juge SBERT (Sémantique) :**
+    ```bash
+    python src/genai/07_evaluate.py --prefix eval_finale --model sbert
+    ```
+    *Output : `reports/evaluation/eval_finale_sbert_summary.csv`*
+
+*   **Avec le juge TF-IDF (Mots-clés) :**
+    ```bash
+    python src/genai/evaluate_generations.py --prefix eval_finale --model tfidf
+    ```
+    *Output : `reports/evaluation/eval_finale_tfidf_summary.csv`*
 
 ---
 
@@ -160,13 +166,18 @@ Le "Juge" (SBERT ou TF-IDF) note vos reviews générées.
 
 ```mermaid
 graph TD
-    A[Internet / API Steam] -->|src/01_collect| B(data/raw/reviews_raw_train.csv)
-    B -->|src/02_build| C(data/processed/dataset_train.csv)
+    A[API Steam] -->|src/data_pipeline| B(data/processed/dataset_train.csv)
     
-    C -->|src/03_train| D[reports/judge_model_sbert.joblib]
-    C -->|genai/build_prompt| E[reports/prompt_batch.csv]
+    B -->|src/judge| C[reports/models/judge_model_sbert.joblib]
+    B -->|src/judge| D[reports/models/judge_model_tfidf.joblib]
     
-    E -.->|Génération Manuelle/Colab| F[reports/prompt_batch_filled.csv]
+    B -->|src/genai| E[reports/genai_inputs/sft_train.jsonl]
+    B -->|src/genai| F[reports/genai_inputs/prompt_batch.csv]
     
-    F & D -->|genai/evaluate| G[Resultats d'Evaluation]
+    E & F -.->|Google Colab| G[data/outputs_genai_models/*.csv]
+    
+    G -->|src/genai/merge| H(prompt_batch_filled.csv)
+    
+    H & C -->|src/genai/eval| I[Rapport SBERT]
+    H & D -->|src/genai/eval| J[Rapport TF-IDF]
 ```
