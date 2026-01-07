@@ -12,6 +12,7 @@ L'organisation des fichiers sépare clairement le code source, les données et l
 
 ```text
 steam-project/
+├── USAGE.md           # rapport complet et détaillé de l'execution des différents fichiers
 ├── analyse.md         # rapport complet et détaillé des résultats de génération
 ├── notebooks/         # notebooks jupyter (exploration) et google colab (fine-tuning gpu)
 ├── data/              # données locales (ignorées par git)
@@ -92,10 +93,9 @@ Une fois ces fichiers générés, les notebooks présents dans `notebooks/` doiv
 python src/genai/06_merge_outputs.py
 ```
 
-### 4. évaluation
-Enfin, nous mesurons la qualité des productions à l'aide des outils développés dans le module d'évaluation.
+### 4. Évaluation
 
---> VOIR src/USAGE.md
+Enfin, nous mesurons la qualité des productions. Pour ne pas alourdir ce document principal, la liste exhaustive des commandes d'évaluation est détaillée dans le fichier [USAGE.md](./USAGE.md).
 
 ## Synthèse des résultats
 
