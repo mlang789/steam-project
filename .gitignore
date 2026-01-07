@@ -7,7 +7,7 @@ __pycache__/
 env/
 venv/
 .env
-deump/
+dump/
 
 # jupyter notebooks
 .ipynb_checkpoints
