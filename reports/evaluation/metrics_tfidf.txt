@@ -1,13 +1,13 @@
 Model: tfidf
 Threshold: 0 (implicit)
-ROC-AUC: 0.915461
+ROC-AUC: 0.915390
 
 Classification report:
               precision    recall  f1-score   support
 
-           0     0.6772    0.7334    0.7042      1084
-           1     0.9275    0.9070    0.9171      4074
+           0     0.6752    0.7318    0.7023      1085
+           1     0.9269    0.9062    0.9164      4071
 
-    accuracy                         0.8705      5158
-   macro avg     0.8023    0.8202    0.8106      5158
-weighted avg     0.8749    0.8705    0.8724      5158
+    accuracy                         0.8695      5156
+   macro avg     0.8010    0.8190    0.8094      5156
+weighted avg     0.8739    0.8695    0.8714      5156
