@@ -10,15 +10,15 @@ Métriques calculées :
 - inter_review_sim_topk : similarité moyenne (cosinus) avec les k voisins les plus proches
   parmi les autres reviews générées (redondance globale).
 
-Entrée :
-- --input : CSV contenant les reviews générées
-Colonnes attendues par défaut :
-- generated_text (modifiable via --text-col)
-- method (optionnel mais recommandé, modifiable via --method-col)
+Exemple :
+# 1. Naive
+python src/evaluation/09_evaluate_diversity.py --input reports/prompt_batch_base_naive_clean.csv --prefix "Approche Naive" --inter-sim --save
 
-Sorties (uniquement si --save) :
-- reports/<prefix>_div_rows.csv
-- reports/<prefix>_div_summary.csv
+# 2. Engineered
+python src/evaluation/09_evaluate_diversity.py --input reports/prompt_batch_base_engineered_clean.csv --prefix "Approche Engineered" --inter-sim --save
+
+# 3. Finetuned
+python src/evaluation/09_evaluate_diversity.py --input reports/prompt_batch_finetuned_v5.csv --prefix "Approche Finetuned" --inter-sim --save
 """
 
 from __future__ import annotations
@@ -79,8 +79,6 @@ def trigram_repeat_rate(tokens: List[str]) -> float:
     c = Counter(tri)
     repeats = sum(max(0, v - 1) for v in c.values())
     return safe_ratio(repeats, len(tri))
-
-
 
 # SBERT embeddings + similarité inter-reviews
 
@@ -225,6 +223,38 @@ def main() -> None:
 
     print("=== Résumé évaluation diversité (par méthode) ===")
     print(summary.to_string(index=False))
+
+    # Sauvegarde si demandé
+    if args.save:
+        # 1. Dossier 'results'
+        out_dir = Path("results")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 2. Fichier cible pour la diversité
+        out_md = out_dir / "results_diversity.md"
+
+        # 3. Mode 'append' si le fichier existe, sinon 'write'
+        file_exists = out_md.exists()
+        mode = "a" if file_exists else "w"
+
+        with open(out_md, mode, encoding="utf-8") as f:
+            # Si nouveau fichier, on met le grand titre
+            if not file_exists:
+                f.write("# Résumé évaluation diversité\n\n")
+            
+            # Sous-titre pour identifier le run actuel
+            f.write(f"## Rapport : {args.prefix}\n\n")
+
+            # Écriture du tableau
+            try:
+                # Nécessite 'pip install tabulate'
+                f.write(summary.to_markdown(index=False))
+            except ImportError:
+                f.write(summary.to_string(index=False))
+            
+            f.write("\n\n") # Espace pour le prochain run
+
+        print(f"\nRésultats ajoutés à :\n- {out_md}")
 
 
 if __name__ == "__main__":

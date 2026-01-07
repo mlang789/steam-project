@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 import time
 
+# Ajout de la racine du projet au path pour pouvoir importer src.config
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 import argparse
@@ -10,17 +11,23 @@ import requests
 from tqdm import tqdm
 from src.config import TRAIN_APP_IDS, VALIDATION_APP_IDS, FILES
 
+# Limites pour le scraping
 REVIEWS_PER_GAME = 2000
 REQUEST_SLEEP = 1.0
 
 def fetch_reviews(app_ids, output_path):
+    """Récupère les reviews via l'API Steam et sauvegarde en CSV."""
     print(f"--- Collecte des reviews pour {len(app_ids)} jeux ---")
     rows = []
+
     for app_id in tqdm(app_ids, desc="Downloading Reviews"):
         cursor = "*"
         collected = 0
+        
+        # On boucle tant qu'on n'a pas le quota de reviews pour ce jeu
         while collected < REVIEWS_PER_GAME:
             try:
+                # Pagination API Steam via le paramètre 'cursor'
                 url = f"https://store.steampowered.com/appreviews/{app_id}"
                 params = {"json": 1, "filter": "recent", "language": "english", "num_per_page": 100, "cursor": cursor}
                 resp = requests.get(url, params=params, timeout=10)
@@ -28,6 +35,8 @@ def fetch_reviews(app_ids, output_path):
                 
                 reviews = data.get("reviews", [])
                 if not reviews: break
+                
+                # Mise à jour du curseur pour la page suivante
                 cursor = data.get("cursor", cursor)
 
                 for r in reviews:
@@ -39,7 +48,10 @@ def fetch_reviews(app_ids, output_path):
                     })
                     collected += 1
                     if collected >= REVIEWS_PER_GAME: break
+                
+                # Pause pour éviter le rate-limiting
                 time.sleep(REQUEST_SLEEP)
+
             except Exception as e:
                 print(f"Error on app {app_id}: {e}")
                 break
@@ -49,14 +61,18 @@ def fetch_reviews(app_ids, output_path):
     print(f"Sauvegardé : {output_path} ({len(df)} lignes)")
 
 def fetch_titles(app_ids, output_path):
+    """Récupère le nom des jeux pour faire la correspondance ID -> Titre."""
     print(f"--- Récupération des titres pour {len(app_ids)} jeux ---")
     data = []
+
+    # Utilisation d'une session pour garder la connexion ouverte
     with requests.Session() as s:
         for app_id in tqdm(app_ids, desc="Fetching Titles"):
             try:
                 resp = s.get("https://store.steampowered.com/api/appdetails", params={"appids": app_id}, timeout=10)
                 if resp.status_code == 200:
                     json_data = resp.json()
+                    # L'API appdetails renvoie une structure {id: {success: bool, data: {...}}}
                     if json_data[str(app_id)]["success"]:
                         data.append({"app_id": app_id, "title": json_data[str(app_id)]["data"]["name"]})
             except Exception:
@@ -72,6 +88,7 @@ if __name__ == "__main__":
     parser.add_argument("mode", choices=["train", "validation"], help="Quel dataset construire ?")
     args = parser.parse_args()
 
+    # Chargement de la config selon le mode choisi
     target_ids = TRAIN_APP_IDS if args.mode == "train" else VALIDATION_APP_IDS
     paths = FILES[args.mode]
 

@@ -18,13 +18,14 @@ Résumé (par méthode) :
 - nn_overlap_max : maximum de nn_overlap observé.
 
 Exemple :
-python .\\genai\\evaluate_realism.py `
-  --gen .\\reports\\prompt_batch_base_engineered_clean.csv `
-  --real .\\data\\steam_real_reviews.csv `
-  --gen-text-col generated_text `
-  --real-text-col review_text `
-  --sbert-model all-MiniLM-L6-v2 --topk 5 --nn-threshold 0.9 `
-  --save --prefix engineered_realism
+# 1. Naive
+python src/evaluation/10_evaluate_realism.py --gen reports/prompt_batch_base_naive_clean.csv --real data/steam_real_reviews.csv --prefix "Approche Naive" --save
+
+# 2. Engineered
+python src/evaluation/10_evaluate_realism.py --gen reports/prompt_batch_base_engineered_clean.csv --real data/steam_real_reviews.csv --prefix "Approche Engineered" --save
+
+# 3. Finetuned
+python src/evaluation/10_evaluate_realism.py --gen reports/prompt_batch_finetuned_v5.csv --real data/steam_real_reviews.csv --prefix "Approche Finetuned" --save
 """
 
 from __future__ import annotations
@@ -209,17 +210,34 @@ def main() -> None:
 
     
     # Sauvegarde si demandé
-    
+
     if args.save:
-        out_rows = Path("reports") / f"{args.prefix}_real_rows.csv"
-        out_sum = Path("reports") / f"{args.prefix}_real_summary.csv"
-        out_rows.parent.mkdir(parents=True, exist_ok=True)
+        out_dir = Path("results")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_md = out_dir / "results_realism.md"
 
-        used.to_csv(out_rows, index=False, encoding="utf-8", quoting=csv.QUOTE_ALL)
-        summary.to_csv(out_sum, index=False, encoding="utf-8", quoting=csv.QUOTE_ALL)
+        # On vérifie si le fichier existe déjà pour savoir si on "append" ('a') ou on crée ('w')
+        file_exists = out_md.exists()
+        mode = "a" if file_exists else "w"
 
-        print(f"\nSauvegardé :\n- {out_rows}\n- {out_sum}")
+        with open(out_md, mode, encoding="utf-8") as f:
+            # Si le fichier est nouveau, on met le grand titre
+            if not file_exists:
+                f.write("# Résumé évaluation réalisme\n\n")
+            
+            # On ajoute un sous-titre basé sur le prefix ou la méthode pour s'y retrouver
+            f.write(f"## Rapport : {args.prefix}\n\n")
 
+            # On écrit le tableau
+            try:
+                # Nécessite 'pip install tabulate'
+                f.write(summary.to_markdown(index=False))
+            except ImportError:
+                f.write(summary.to_string(index=False))
+            
+            f.write("\n\n") # Sauts de ligne pour aérer avant la prochaine exécution
+
+        print(f"\nRésultats ajoutés à :\n- {out_md}")
 
 if __name__ == "__main__":
     main()

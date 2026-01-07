@@ -5,3 +5,7 @@ scikit-learn
 matplotlib
 seaborn
 sentence-transformers
+numpy
+tabulate
+joblib
+jupyter

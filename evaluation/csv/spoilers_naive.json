@@ -1,0 +1,18 @@
+{
+  "game": "Dota 2",
+  "total_reviews_checked": 50,
+  "real_spoiler_count": 0,
+  "fake_spoiler_count": 7,
+  "fake_spoiler_percentage": "14%",
+  "fake_spoiler_ids": [6, 8, 13, 33, 37, 47, 49],
+  "analysis": "Aucun vrai spoiler détecté car Dota 2 est un MOBA sans fin narrative. Cependant, 7 revues contiennent des 'hallucinations narratives'. L'IA invente un 'mode histoire' immersif (ID 6), critique des scénarios clichés (ID 8), ou décrit des synopsis fantaisistes comme une lutte contre une 'force maléfique' dans un monde technologique (ID 33) ou une introduction liée au Valhalla (ID 49)."
+}
+{
+  "game": "Counter-Strike 2",
+  "total_reviews_checked": 50,
+  "real_spoiler_count": 0,
+  "fake_spoiler_count": 11,
+  "fake_spoiler_percentage": "22%",
+  "fake_spoiler_ids": [1, 4, 8, 10, 20, 26, 30, 32, 37, 40, 42],
+  "analysis": "Aucun vrai spoiler car le jeu est purement compétitif. Cependant, l'IA a halluciné des éléments narratifs dans 11 revues. Elle mentionne spécifiquement une intrigue sur la 'Guerre Froide' (ID 1), prétend avoir fini le 'mode campagne' (ID 4), et critique le développement des personnages ou la profondeur du scénario (ID 10, 20, 40), traitant ce jeu de tir tactique comme un jeu d'aventure narratif."
+}

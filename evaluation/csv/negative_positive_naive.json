@@ -1,0 +1,50 @@
+{
+  "game": "Dota 2",
+  "target_rating": 3,
+  "expected_sentiment": "NEGATIVE",
+  "total_reviews_checked": 25,
+  "correct_sentiment_count": 20,
+  "accuracy_percentage": "80.0%",
+  "failed_ids": [2, 16, 18, 21, 24],
+  "analysis": "Reviews 2, 18, 21, and 24 contained highly positive praise (e.g., 'thrilled', 'excellent', 'stunning', 'improved') that contradicted the target rating of 3. Review 16 matched the rating in the second half but opened with 'truly amazed by its quality', creating a confusing sentiment mismatch."
+}   
+{
+  "game": "Dota 2",
+  "target_rating": 9,
+  "expected_sentiment": "POSITIVE",
+  "total_reviews_checked": 25,
+  "correct_sentiment_count": 25,
+  "accuracy_percentage": "100.0%",
+  "failed_ids": [],
+  "analysis": "All reviews correctly expressed positive sentiment, using terms like 'masterpiece', 'breathtaking', and 'top-notch'."
+}
+{
+  "game": "Counter-Strike 2",
+  "target_rating": 3,
+  "expected_sentiment": "NEGATIVE",
+  "total_reviews_checked": 25,
+  "correct_sentiment_count": 19,
+  "accuracy_percentage": "76.0%",
+  "failed_ids": [2, 7, 9, 12, 17, 23],
+  "analysis": "Significant hallucinations of sentiment. Several reviews (IDs 2, 7, 9, 17, 23) explicitly called the game a 'masterpiece', 'perfect', or 'exceptional' despite the 3/10 rating. ID 12 praised the quality and polish."
+}
+{
+  "game": "Team Fortress 2",
+  "target_rating": 3,
+  "expected_sentiment": "NEGATIVE",
+  "total_reviews_checked": 25,
+  "correct_sentiment_count": 21,
+  "accuracy_percentage": "84.0%",
+  "failed_ids": [3, 6, 9, 23],
+  "analysis": "Reviews 3, 9, and 23 explicitly stated the game was a 'favorite' or 'loved' by the user, which contradicts the negative score. Review 6 used positive language like 'delighted' and 'unique charm' that outweighed the minor criticisms."
+}
+{
+  "game": "Team Fortress 2",
+  "target_rating": 9,
+  "expected_sentiment": "POSITIVE",
+  "total_reviews_checked": 25,
+  "correct_sentiment_count": 25,
+  "accuracy_percentage": "100.0%",
+  "failed_ids": [],
+  "analysis": "All reviews matched the positive expectation, consistently praising gameplay, graphics, and class balance."
+}

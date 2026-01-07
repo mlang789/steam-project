@@ -1,0 +1,18 @@
+{
+  "game": "Dota 2",
+  "total_reviews_checked": 50,
+  "real_spoiler_count": 0,
+  "fake_spoiler_count": 5,
+  "fake_spoiler_percentage": "10%",
+  "fake_spoiler_ids": [6, 7, 15, 38, 46],
+  "analysis": "Aucun vrai spoiler car le jeu n'a pas d'histoire linéaire. Cependant, 5 revues contiennent des 'hallucinations narratives' où l'IA invente des éléments d'intrigue. L'ID 7 est le plus flagrant, affirmant avoir 'fini le mode campagne' et critiquant la 'profondeur de l'histoire'. Les autres mentionnent des 'storylines' intriguantes ou fantastiques qui n'existent pas."
+}
+{
+  "game": "Counter-Strike 2",
+  "total_reviews_checked": 50,
+  "real_spoiler_count": 0,
+  "fake_spoiler_count": 18,
+  "fake_spoiler_percentage": "36%",
+  "fake_spoiler_ids": [1, 6, 8, 11, 16, 18, 20, 24, 25, 27, 30, 35, 39, 40, 44, 45, 46, 48],
+  "analysis": "L'IA a massivement halluciné un mode solo. 18 revues traitent le jeu comme s'il avait une narration. L'ID 16 est une 'hallucination de spoiler' majeure : elle invente des personnages spécifiques ('Jack Ravenwood', 'Tracy McNeil') et un synopsis de mission terroriste. De nombreuses autres revues (ex: 24, 27, 45) critiquent la fin de la 'campagne', les 'boss fights' (ID 44) ou la qualité du scénario, ce qui constitue une intention de divulguer ou critiquer l'intrigue."
+}

@@ -1,0 +1,49 @@
+{
+"game": "Team Fortress 2",
+"total_reviews_checked": 50,
+"hallucination_count": 14,
+"hallucination_percentage": "28.0%",
+"hallucinated_ids": [
+3,
+17,
+19,
+20,
+23,
+27,
+30,
+32,
+33,
+34,
+36,
+45,
+48,
+49
+],
+"analysis": "Several reviews contained AI prompt injections or metadata artifacts (IDs 27, 30, 34). Actual hallucinations included genre confusion (describing TF2 as a 'Warcraft clone', an 'Arcade cabinet' game from the 80s, or having a 'Campaign mode' with 'checkpoints'). Mechanics were also invented, such as RPG-style progression ('unlocking skills', 'level 68' to get gear, 'armor types', 'creating custom characters'), and non-existent characters/classes ('Skunk', 'Mekko', 'Bob'). One review cited an impossible concurrent player count of 7 million."
+}
+{
+  "game": "Counter-Strike 2",
+  "total_reviews_checked": 50,
+  "hallucination_count": 17,
+  "hallucination_percentage": "34.0%",
+  "hallucinated_ids": [
+    5,
+    8,
+    10,
+    11,
+    15,
+    19,
+    21,
+    22,
+    23,
+    24,
+    26,
+    27,
+    34,
+    39,
+    43,
+    45,
+    47
+  ],
+  "analysis": "En appliquant le filtre de tolérance pour les confusions CS:GO/CS2, le nombre d'hallucinations chute drastiquement. Les erreurs restantes concernent l'invention totale de genres ou de plateformes : mentions récurrentes d'un 'Mode Histoire' ou 'Campagne Solo' (inexistants dans CS), affirmations que le jeu est sur PS2 (impossible), description de mécaniques de RPG (niveaux, grind d'équipement), ou des absurdités techniques comme 'acheter des jeux d'occasion sur Steam' ou l'absence de pistolets/fusils à pompe."
+}

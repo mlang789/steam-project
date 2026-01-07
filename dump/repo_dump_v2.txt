@@ -1,0 +1,881 @@
+# Repository dump for project: steam-project
+# Included: main.py, README, src/, sql/
+
+
+================================================================================
+FILE: src/build_reviews_validation.py
+================================================================================
+
+# src/build_reviews_with_title.py
+"""
+Build an enriched review dataset with:
+- game title (from data/processed/games.csv)
+- a numeric rating derived from recommended (Steam is binary)
+
+Input:
+- data/processed/reviews.csv
+- data/processed/games.csv
+
+Output:
+- data/processed/reviews_with_title.csv
+"""
+
+from pathlib import Path
+
+import pandas as pd
+
+REVIEWS_PATH = Path("data/processed/reviews_validation.csv")
+GAMES_PATH = Path("data/processed/games_validation.csv")
+OUT_PATH = Path("data/processed/reviews_validation_with_title.csv")
+
+# Coarse rating mapping (defendable and simple)
+RATING_POS = 9
+RATING_NEG = 3
+
+
+def main() -> None:
+    if not REVIEWS_PATH.exists():
+        raise FileNotFoundError(f"Missing file: {REVIEWS_PATH}")
+    if not GAMES_PATH.exists():
+        raise FileNotFoundError(f"Missing file: {GAMES_PATH}")
+
+    reviews = pd.read_csv(REVIEWS_PATH)
+    games = pd.read_csv(GAMES_PATH)
+
+    # Basic column checks
+    required_reviews_cols = {"app_id", "recommended", "review_text"}
+    required_games_cols = {"app_id", "title"}
+
+    missing_reviews = required_reviews_cols - set(reviews.columns)
+    missing_games = required_games_cols - set(games.columns)
+
+    if missing_reviews:
+        raise ValueError(f"reviews.csv missing columns: {sorted(missing_reviews)}")
+    if missing_games:
+        raise ValueError(f"games.csv missing columns: {sorted(missing_games)}")
+
+    # Merge titles
+    df = reviews.merge(games, on="app_id", how="left")
+
+    # Sanity check: any missing titles?
+    missing_titles = df["title"].isna().sum()
+    if missing_titles > 0:
+        print(f"Warning: {missing_titles} reviews have missing titles after merge.")
+
+    # Ensure types
+    df["review_text"] = df["review_text"].fillna("").astype(str)
+
+    # Create numeric rating (Steam has only voted_up)
+    df["recommended"] = df["recommended"].astype(int)
+    df["rating"] = df["recommended"].map({1: RATING_POS, 0: RATING_NEG}).astype(int)
+
+    # Reorder columns (nice for downstream gen/eval)
+    front_cols = ["app_id", "title", "rating", "recommended", "review_text"]
+    other_cols = [c for c in df.columns if c not in front_cols]
+    df = df[front_cols + other_cols]
+
+    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(OUT_PATH, index=False, encoding="utf-8")
+
+    print(f"Saved {OUT_PATH} with shape: {df.shape}")
+    print("Preview:")
+    print(df.head(5).to_string(index=False))
+
+
+if __name__ == "__main__":
+    main()
+
+
+================================================================================
+FILE: src/build_reviews_with_title.py
+================================================================================
+
+# src/build_reviews_with_title.py
+"""
+Build an enriched review dataset with:
+- game title (from data/processed/games.csv)
+- a numeric rating derived from recommended (Steam is binary)
+
+Input:
+- data/processed/reviews.csv
+- data/processed/games.csv
+
+Output:
+- data/processed/reviews_with_title.csv
+"""
+
+from pathlib import Path
+
+import pandas as pd
+
+REVIEWS_PATH = Path("data/processed/reviews.csv")
+GAMES_PATH = Path("data/processed/games.csv")
+OUT_PATH = Path("data/processed/reviews_with_title.csv")
+
+# Coarse rating mapping (defendable and simple)
+RATING_POS = 9
+RATING_NEG = 3
+
+
+def main() -> None:
+    if not REVIEWS_PATH.exists():
+        raise FileNotFoundError(f"Missing file: {REVIEWS_PATH}")
+    if not GAMES_PATH.exists():
+        raise FileNotFoundError(f"Missing file: {GAMES_PATH}")
+
+    reviews = pd.read_csv(REVIEWS_PATH)
+    games = pd.read_csv(GAMES_PATH)
+
+    # Basic column checks
+    required_reviews_cols = {"app_id", "recommended", "review_text"}
+    required_games_cols = {"app_id", "title"}
+
+    missing_reviews = required_reviews_cols - set(reviews.columns)
+    missing_games = required_games_cols - set(games.columns)
+
+    if missing_reviews:
+        raise ValueError(f"reviews.csv missing columns: {sorted(missing_reviews)}")
+    if missing_games:
+        raise ValueError(f"games.csv missing columns: {sorted(missing_games)}")
+
+    # Merge titles
+    df = reviews.merge(games, on="app_id", how="left")
+
+    # Sanity check: any missing titles?
+    missing_titles = df["title"].isna().sum()
+    if missing_titles > 0:
+        print(f"Warning: {missing_titles} reviews have missing titles after merge.")
+
+    # Ensure types
+    df["review_text"] = df["review_text"].fillna("").astype(str)
+
+    # Create numeric rating (Steam has only voted_up)
+    df["recommended"] = df["recommended"].astype(int)
+    df["rating"] = df["recommended"].map({1: RATING_POS, 0: RATING_NEG}).astype(int)
+
+    # Reorder columns (nice for downstream gen/eval)
+    front_cols = ["app_id", "title", "rating", "recommended", "review_text"]
+    other_cols = [c for c in df.columns if c not in front_cols]
+    df = df[front_cols + other_cols]
+
+    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(OUT_PATH, index=False, encoding="utf-8")
+
+    print(f"Saved {OUT_PATH} with shape: {df.shape}")
+    print("Preview:")
+    print(df.head(5).to_string(index=False))
+
+
+if __name__ == "__main__":
+    main()
+
+
+================================================================================
+FILE: src/clean_reviews.py
+================================================================================
+
+from pathlib import Path
+import pandas as pd
+
+# Paths
+RAW_PATH = "data/raw/reviews_raw.csv"
+PROCESSED_PATH = "data/processed/reviews.csv"
+
+Path("data/processed").mkdir(parents=True, exist_ok=True)
+
+# Load raw data
+df = pd.read_csv(RAW_PATH)
+
+# 1) Keep English reviews only
+df["language"] = df["language"].fillna("")
+df = df[df["language"] == "english"].copy()
+
+# 2) Remove empty or very short reviews
+df["review_text"] = df["review_text"].fillna("").astype(str)
+df["text_length"] = df["review_text"].str.len()
+df = df[df["text_length"] >= 30].copy()
+
+# 3) Drop duplicates (same text for same game)
+df = df.drop_duplicates(subset=["app_id", "review_text"]).copy()
+
+# 4) Select useful columns
+columns_to_keep = [
+    "app_id",
+    "recommended",
+    "review_text",
+    "timestamp_created",
+    "playtime_at_review",
+    "steam_purchase",
+    "received_for_free",
+    "written_during_early_access",
+    "votes_up",
+    "votes_funny",
+    "weighted_vote_score",
+]
+df = df[columns_to_keep].copy()
+
+# Save cleaned dataset
+df.to_csv(PROCESSED_PATH, index=False, encoding="utf-8")
+
+print(f"Saved {PROCESSED_PATH} with shape: {df.shape}")
+print("\nRecommended label distribution:")
+print(df["recommended"].value_counts())
+
+
+================================================================================
+FILE: src/clean_reviews_validation.py
+================================================================================
+
+from pathlib import Path
+import pandas as pd
+
+# Paths
+RAW_PATH = "data/raw/reviews_validation_raw.csv"
+PROCESSED_PATH = "data/processed/reviews_validation.csv"
+
+Path("data/processed").mkdir(parents=True, exist_ok=True)
+
+# Load raw data
+df = pd.read_csv(RAW_PATH)
+
+# 1) Keep English reviews only
+df["language"] = df["language"].fillna("")
+df = df[df["language"] == "english"].copy()
+
+# 2) Remove empty or very short reviews
+df["review_text"] = df["review_text"].fillna("").astype(str)
+df["text_length"] = df["review_text"].str.len()
+df = df[df["text_length"] >= 30].copy()
+
+# 3) Drop duplicates (same text for same game)
+df = df.drop_duplicates(subset=["app_id", "review_text"]).copy()
+
+# 4) Select useful columns
+columns_to_keep = [
+    "app_id",
+    "recommended",
+    "review_text",
+    "timestamp_created",
+    "playtime_at_review",
+    "steam_purchase",
+    "received_for_free",
+    "written_during_early_access",
+    "votes_up",
+    "votes_funny",
+    "weighted_vote_score",
+]
+df = df[columns_to_keep].copy()
+
+# Save cleaned dataset
+df.to_csv(PROCESSED_PATH, index=False, encoding="utf-8")
+
+print(f"Saved {PROCESSED_PATH} with shape: {df.shape}")
+print("\nRecommended label distribution:")
+print(df["recommended"].value_counts())
+
+
+================================================================================
+FILE: src/collect_reviews.py
+================================================================================
+
+import time
+from pathlib import Path
+
+import pandas as pd
+import requests
+from tqdm import tqdm
+
+# A small starter list of well-known Steam app IDs (you can change them anytime)
+BASE_APP_IDS = [
+    570,      # Dota 2
+    730,      # Counter-Strike 2
+    440,      # Team Fortress 2
+    1091500,  # Cyberpunk 2077
+    1245620,  # Elden Ring
+]
+
+NEGATIVE_APP_IDS = [
+    1517290,  # Battlefield 2042
+    1599340,  # The Day Before
+    2357570,  # Overwatch 2
+    1272080,  # Payday 3
+    1547000,  # GTA Trilogy Definitive Edition
+]
+
+
+# Combine lists (structure unchanged)
+APP_IDS = BASE_APP_IDS + NEGATIVE_APP_IDS
+
+REVIEWS_PER_GAME = 2000     # how many reviews to collect per game
+REQUEST_SLEEP_SEC = 1.0     # sleep between requests to avoid spamming
+LANGUAGE = "english"        # keep it consistent for generation and modeling
+
+Path("data/raw").mkdir(parents=True, exist_ok=True)
+
+rows = []
+
+for app_id in tqdm(APP_IDS, desc="Collecting reviews"):
+    cursor = "*"
+    collected = 0
+
+    while collected < REVIEWS_PER_GAME:
+        url = f"https://store.steampowered.com/appreviews/{app_id}"
+        params = {
+            "json": 1,
+            "filter": "recent",
+            "language": LANGUAGE,
+            "num_per_page": 100,
+            "cursor": cursor,
+        }
+
+        resp = requests.get(url, params=params, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+
+        cursor = data.get("cursor", cursor)
+        reviews = data.get("reviews", [])
+
+        # Safety: sometimes you may get no reviews back (end of pagination, etc.)
+        if not reviews:
+            break
+
+        for review in reviews:
+            author = review.get("author", {}) or {}
+
+            rows.append({
+                "app_id": app_id,
+                "language": review.get("language"),
+                "recommended": review.get("voted_up"),
+                "review_text": review.get("review", ""),
+                "timestamp_created": review.get("timestamp_created"),
+                "playtime_at_review": author.get("playtime_at_review", None),
+
+                # Extra useful metadata (optional but nice)
+                "steam_purchase": review.get("steam_purchase", None),
+                "received_for_free": review.get("received_for_free", None),
+                "written_during_early_access": review.get("written_during_early_access", None),
+                "votes_up": review.get("votes_up", None),
+                "votes_funny": review.get("votes_funny", None),
+                "weighted_vote_score": review.get("weighted_vote_score", None),
+            })
+
+            collected += 1
+            if collected >= REVIEWS_PER_GAME:
+                break
+
+        time.sleep(REQUEST_SLEEP_SEC)
+
+df = pd.DataFrame(rows)
+output_path = "data/raw/reviews_raw.csv"
+df.to_csv(output_path, index=False, encoding="utf-8")
+print(f"Saved {output_path} with shape: {df.shape}")
+
+
+================================================================================
+FILE: src/collect_reviews_validation.py
+================================================================================
+
+import time
+from pathlib import Path
+
+import pandas as pd
+import requests
+from tqdm import tqdm
+
+# A small starter list of well-known Steam app IDs (you can change them anytime)
+BASE_APP_IDS = [
+    548430,   # Deep Rock Galactic
+    892970,   # Valheim
+]
+
+NEGATIVE_APP_IDS = [
+    1097840,  # Halo Infinite
+    1940340,  # Redfall
+]
+
+
+# Combine lists (structure unchanged)
+APP_IDS = BASE_APP_IDS + NEGATIVE_APP_IDS
+
+REVIEWS_PER_GAME = 2000     # how many reviews to collect per game
+REQUEST_SLEEP_SEC = 1.0     # sleep between requests to avoid spamming
+LANGUAGE = "english"        # keep it consistent for generation and modeling
+
+Path("data/raw").mkdir(parents=True, exist_ok=True)
+
+rows = []
+
+for app_id in tqdm(APP_IDS, desc="Collecting reviews"):
+    cursor = "*"
+    collected = 0
+
+    while collected < REVIEWS_PER_GAME:
+        url = f"https://store.steampowered.com/appreviews/{app_id}"
+        params = {
+            "json": 1,
+            "filter": "recent",
+            "language": LANGUAGE,
+            "num_per_page": 100,
+            "cursor": cursor,
+        }
+
+        resp = requests.get(url, params=params, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+
+        cursor = data.get("cursor", cursor)
+        reviews = data.get("reviews", [])
+
+        # Safety: sometimes you may get no reviews back (end of pagination, etc.)
+        if not reviews:
+            break
+
+        for review in reviews:
+            author = review.get("author", {}) or {}
+
+            rows.append({
+                "app_id": app_id,
+                "language": review.get("language"),
+                "recommended": review.get("voted_up"),
+                "review_text": review.get("review", ""),
+                "timestamp_created": review.get("timestamp_created"),
+                "playtime_at_review": author.get("playtime_at_review", None),
+
+                # Extra useful metadata (optional but nice)
+                "steam_purchase": review.get("steam_purchase", None),
+                "received_for_free": review.get("received_for_free", None),
+                "written_during_early_access": review.get("written_during_early_access", None),
+                "votes_up": review.get("votes_up", None),
+                "votes_funny": review.get("votes_funny", None),
+                "weighted_vote_score": review.get("weighted_vote_score", None),
+            })
+
+            collected += 1
+            if collected >= REVIEWS_PER_GAME:
+                break
+
+        time.sleep(REQUEST_SLEEP_SEC)
+
+df = pd.DataFrame(rows)
+output_path = "data/raw/reviews_validation_raw.csv"
+df.to_csv(output_path, index=False, encoding="utf-8")
+print(f"Saved {output_path} with shape: {df.shape}")
+
+
+================================================================================
+FILE: src/enrich_games.py
+================================================================================
+
+# src/enrich_games.py
+"""
+Fetch Steam game titles from app IDs found in data/raw/reviews_raw.csv,
+then save a mapping file to data/processed/games.csv.
+
+Output CSV columns:
+- app_id
+- title
+"""
+
+import time
+from pathlib import Path
+from typing import Dict, Optional
+
+import pandas as pd
+import requests
+from tqdm import tqdm
+
+
+RAW_REVIEWS_PATH = Path("data/raw/reviews_raw.csv")
+OUT_DIR = Path("data/processed")
+OUT_PATH = OUT_DIR / "games.csv"
+
+REQUEST_SLEEP_SEC = 0.8
+TIMEOUT_SEC = 30
+MAX_RETRIES = 3
+
+
+def fetch_title_for_appid(app_id: int, session: requests.Session) -> Optional[str]:
+    """
+    Call Steam Store 'appdetails' API to get the game title (data.name).
+    Returns None if not found or request fails.
+    """
+    url = "https://store.steampowered.com/api/appdetails"
+    params = {"appids": str(app_id)}
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            resp = session.get(url, params=params, timeout=TIMEOUT_SEC)
+            resp.raise_for_status()
+            payload = resp.json()
+
+            # Expected shape: { "<appid>": { "success": bool, "data": {...} } }
+            app_key = str(app_id)
+            if app_key not in payload:
+                return None
+
+            entry = payload[app_key]
+            if not entry.get("success", False):
+                return None
+
+            data = entry.get("data", {}) or {}
+            title = data.get("name", None)
+
+            if isinstance(title, str) and title.strip():
+                return title.strip()
+
+            return None
+
+        except (requests.RequestException, ValueError):
+            # retry after a short delay
+            if attempt < MAX_RETRIES:
+                time.sleep(0.8 * attempt)
+            else:
+                return None
+
+    return None
+
+
+def main() -> None:
+    if not RAW_REVIEWS_PATH.exists():
+        raise FileNotFoundError(
+            f"Missing file: {RAW_REVIEWS_PATH}. Run your collection script first."
+        )
+
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    df = pd.read_csv(RAW_REVIEWS_PATH, usecols=["app_id"])
+    app_ids = sorted(df["app_id"].dropna().astype(int).unique().tolist())
+
+    if not app_ids:
+        raise ValueError("No app_id found in the raw reviews file.")
+
+    id_to_title: Dict[int, Optional[str]] = {}
+
+    with requests.Session() as session:
+        for app_id in tqdm(app_ids, desc="Fetching game titles"):
+            title = fetch_title_for_appid(app_id, session)
+            id_to_title[app_id] = title
+            time.sleep(REQUEST_SLEEP_SEC)
+
+    out_df = pd.DataFrame(
+        [{"app_id": app_id, "title": title} for app_id, title in id_to_title.items()]
+    )
+
+    # Basic sanity check: warn if some titles are missing
+    missing = out_df["title"].isna().sum()
+    if missing > 0:
+        print(f"Warning: {missing}/{len(out_df)} titles could not be fetched (title is empty).")
+
+    out_df.to_csv(OUT_PATH, index=False, encoding="utf-8")
+    print(f"Saved {OUT_PATH} with shape: {out_df.shape}")
+    print(out_df.head(10).to_string(index=False))
+
+
+if __name__ == "__main__":
+    main()
+
+
+================================================================================
+FILE: src/enrich_games_validation.py
+================================================================================
+
+# src/enrich_games.py
+"""
+Fetch Steam game titles from app IDs found in data/raw/reviews_validation_raw.csv,
+then save a mapping file to data/processed/games_validation.csv.
+
+Output CSV columns:
+- app_id
+- title
+"""
+
+import time
+from pathlib import Path
+from typing import Dict, Optional
+
+import pandas as pd
+import requests
+from tqdm import tqdm
+
+
+RAW_REVIEWS_PATH = Path("data/raw/reviews_validation_raw.csv")
+OUT_DIR = Path("data/processed")
+OUT_PATH = OUT_DIR / "games_validation.csv"
+
+REQUEST_SLEEP_SEC = 0.8
+TIMEOUT_SEC = 30
+MAX_RETRIES = 3
+
+
+def fetch_title_for_appid(app_id: int, session: requests.Session) -> Optional[str]:
+    """
+    Call Steam Store 'appdetails' API to get the game title (data.name).
+    Returns None if not found or request fails.
+    """
+    url = "https://store.steampowered.com/api/appdetails"
+    params = {"appids": str(app_id)}
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            resp = session.get(url, params=params, timeout=TIMEOUT_SEC)
+            resp.raise_for_status()
+            payload = resp.json()
+
+            # Expected shape: { "<appid>": { "success": bool, "data": {...} } }
+            app_key = str(app_id)
+            if app_key not in payload:
+                return None
+
+            entry = payload[app_key]
+            if not entry.get("success", False):
+                return None
+
+            data = entry.get("data", {}) or {}
+            title = data.get("name", None)
+
+            if isinstance(title, str) and title.strip():
+                return title.strip()
+
+            return None
+
+        except (requests.RequestException, ValueError):
+            # retry after a short delay
+            if attempt < MAX_RETRIES:
+                time.sleep(0.8 * attempt)
+            else:
+                return None
+
+    return None
+
+
+def main() -> None:
+    if not RAW_REVIEWS_PATH.exists():
+        raise FileNotFoundError(
+            f"Missing file: {RAW_REVIEWS_PATH}. Run your collection script first."
+        )
+
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    df = pd.read_csv(RAW_REVIEWS_PATH, usecols=["app_id"])
+    app_ids = sorted(df["app_id"].dropna().astype(int).unique().tolist())
+
+    if not app_ids:
+        raise ValueError("No app_id found in the raw reviews file.")
+
+    id_to_title: Dict[int, Optional[str]] = {}
+
+    with requests.Session() as session:
+        for app_id in tqdm(app_ids, desc="Fetching game titles"):
+            title = fetch_title_for_appid(app_id, session)
+            id_to_title[app_id] = title
+            time.sleep(REQUEST_SLEEP_SEC)
+
+    out_df = pd.DataFrame(
+        [{"app_id": app_id, "title": title} for app_id, title in id_to_title.items()]
+    )
+
+    # Basic sanity check: warn if some titles are missing
+    missing = out_df["title"].isna().sum()
+    if missing > 0:
+        print(f"Warning: {missing}/{len(out_df)} titles could not be fetched (title is empty).")
+
+    out_df.to_csv(OUT_PATH, index=False, encoding="utf-8")
+    print(f"Saved {OUT_PATH} with shape: {out_df.shape}")
+    print(out_df.head(10).to_string(index=False))
+
+
+if __name__ == "__main__":
+    main()
+
+
+================================================================================
+FILE: src/train_baseline_svm.py
+================================================================================
+
+from pathlib import Path
+import pandas as pd
+
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.svm import LinearSVC
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
+
+DATA_PATH = "data/processed/reviews.csv"
+OUTPUT_DIR = Path("reports")
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+# ------------------------------------------------------------------
+# Load data
+# ------------------------------------------------------------------
+df = pd.read_csv(DATA_PATH)
+
+df["review_text"] = df["review_text"].fillna("").astype(str)
+df = df[df["review_text"].str.len() >= 30].copy()
+
+X = df["review_text"]
+y = df["recommended"].astype(int)
+
+# ------------------------------------------------------------------
+# Train / test split
+# ------------------------------------------------------------------
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
+)
+
+# ------------------------------------------------------------------
+# Pipeline: TF-IDF + Linear SVM
+# ------------------------------------------------------------------
+pipeline = Pipeline([
+    ("tfidf", TfidfVectorizer()),
+    ("clf", LinearSVC(class_weight="balanced"))
+])
+
+# ------------------------------------------------------------------
+# GridSearch: word vs char n-grams
+# ------------------------------------------------------------------
+param_grid = [
+    {
+        # WORD n-grams
+        "tfidf__analyzer": ["word"],
+        "tfidf__ngram_range": [(1, 1), (1, 2)],
+        "tfidf__min_df": [1, 2],
+        "tfidf__max_features": [50000],
+        "clf__C": [0.1, 1, 10],
+    },
+    {
+        # CHAR n-grams
+        "tfidf__analyzer": ["char"],
+        "tfidf__ngram_range": [(3, 5), (4, 6)],
+        "tfidf__min_df": [3],
+        "tfidf__max_features": [50000],
+        "clf__C": [0.1, 1, 10],
+    },
+]
+
+grid = GridSearchCV(
+    pipeline,
+    param_grid,
+    scoring="f1_macro",
+    cv=5,
+    n_jobs=-1,
+    verbose=1,
+)
+
+# ------------------------------------------------------------------
+# Train
+# ------------------------------------------------------------------
+grid.fit(X_train, y_train)
+
+print("Best parameters:")
+print(grid.best_params_)
+print(f"Best CV score (macro-F1): {grid.best_score_:.4f}")
+
+best_model = grid.best_estimator_
+
+# ------------------------------------------------------------------
+# Evaluation on test set
+# ------------------------------------------------------------------
+y_pred = best_model.predict(X_test)
+scores = best_model.decision_function(X_test)
+
+auc = roc_auc_score(y_test, scores)
+report = classification_report(y_test, y_pred, digits=4)
+cm = confusion_matrix(y_test, y_pred)
+
+print(f"\nTest ROC-AUC: {auc:.4f}")
+print(report)
+print("Confusion matrix:\n", cm)
+
+# ------------------------------------------------------------------
+# Save model & metrics
+# ------------------------------------------------------------------
+import joblib
+joblib.dump(best_model, OUTPUT_DIR / "svm_gridsearch_model.joblib")
+
+(OUTPUT_DIR / "svm_gridsearch_metrics.txt").write_text(
+    f"Best params:\n{grid.best_params_}\n\n"
+    f"Best CV macro-F1: {grid.best_score_:.4f}\n\n"
+    f"Test ROC-AUC: {auc:.4f}\n\n"
+    f"{report}\n\nConfusion matrix:\n{cm}\n",
+    encoding="utf-8"
+)
+
+print("\nSaved reports/svm_gridsearch_model.joblib")
+print("Saved reports/svm_gridsearch_metrics.txt")
+
+
+
+================================================================================
+FILE: src/train_baseline_textclf.py
+================================================================================
+
+from pathlib import Path
+import pandas as pd
+
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
+
+DATA_PATH = "data/processed/reviews.csv"
+OUTPUT_DIR = Path("reports")
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+df = pd.read_csv(DATA_PATH)
+
+# Basic cleaning
+df["review_text"] = df["review_text"].fillna("").astype(str)
+df = df[df["review_text"].str.len() >= 30].copy()
+
+# Target as int
+y = df["recommended"].astype(int)
+X = df["review_text"]
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+model = Pipeline([
+    ("tfidf", TfidfVectorizer(
+        lowercase=True,
+        max_features=50000,
+        ngram_range=(1, 2),
+        min_df=2
+    )),
+    ("clf", LogisticRegression(
+        max_iter=2000,
+        n_jobs=None
+    ))
+])
+
+model.fit(X_train, y_train)
+
+import joblib
+joblib.dump(model, OUTPUT_DIR / "baseline_model.joblib")
+print("Saved reports/baseline_model.joblib")
+
+
+y_pred = model.predict(X_test)
+y_proba = model.predict_proba(X_test)[:, 1]
+
+auc = roc_auc_score(y_test, y_proba)
+report = classification_report(y_test, y_pred, digits=4)
+cm = confusion_matrix(y_test, y_pred)
+
+print(f"ROC-AUC: {auc:.4f}")
+print(report)
+print("Confusion matrix:\n", cm)
+
+# Save metrics
+(OUTPUT_DIR / "baseline_metrics.txt").write_text(
+    f"ROC-AUC: {auc:.4f}\n\n{report}\n\nConfusion matrix:\n{cm}\n",
+    encoding="utf-8"
+)
+print("Saved reports/baseline_metrics.txt")
+

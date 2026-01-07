@@ -13,7 +13,6 @@ from src.config import MODELS_DIR, EVAL_DIR, GENAI_INPUTS_DIR
 
 from src.utils import SBERTEmbedder
 
-# Engineered constraint in your prompts
 MIN_WORDS = 100
 MAX_WORDS = 140
 POS_RATING_THRESHOLD = 7
@@ -33,9 +32,9 @@ def main() -> None:
         "--prefix",
         type=str,
         default="generation_eval",
-        help="Prefix for output files in reports/evaluation/.",
+        help="Prefix for output files in reports/results/.",
     )
-    # NOUVEAU : Choix du modèle
+    
     parser.add_argument(
         "--model",
         type=str,
@@ -45,7 +44,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # --- Construction du chemin du modèle ---
+    # construction du chemin du modèle
     model_filename = f"judge_model_{args.model}.joblib"
     model_path = MODELS_DIR / model_filename
 
@@ -58,7 +57,7 @@ def main() -> None:
             f"Missing judge model: {model_path}. Run 'python src/judge/03_train_judge.py --model {args.model}' first."
         )
 
-    # --- Chargement des données ---
+    # chargement des données
     df = pd.read_csv(input_path, encoding="utf-8", engine="python")
     
     required_cols = {"rating", "method", "generated_text"}
@@ -72,26 +71,26 @@ def main() -> None:
     if used.empty:
         raise ValueError("No filled generations found. Fill generated_text for some rows first.")
 
-    # --- Chargement du Juge ---
+    # chargement du modèle juge
     print(f"Loading judge model ({args.model.upper()}) from {model_path}...")
     model = joblib.load(model_path)
 
-    # --- Prédiction ---
-    # Le pipeline gère lui-même la transformation (SBERT ou TF-IDF)
+    # prédiction
+    # le pipeline gère lui-même la transformation (sbert ou tf-idf)
     try:
-        # Cas Probabiliste (rare avec LinearSVC sauf si calibré)
+        # cas probabiliste (rare avec linearsvc sauf si calibré)
         proba_pos = model.predict_proba(used["generated_text"])[:, 1]
         pred_label = (proba_pos >= 0.5).astype(int)
     except AttributeError:
-        # Cas LinearSVC standard (Decision Function)
+        # cas linearsvc standard (fonction de décision)
         scores = model.decision_function(used["generated_text"])
-        proba_pos = 1 / (1 + np.exp(-scores)) # Sigmoïde pour simuler une proba
+        proba_pos = 1 / (1 + np.exp(-scores)) # sigmoïde pour simuler une probabilité
         pred_label = (scores >= 0).astype(int)
 
     used["pred_proba_recommended"] = proba_pos
     used["pred_label"] = pred_label
 
-    # --- Métriques ---
+    # calcul des métriques
     used["target_label"] = (used["rating"].astype(float) >= POS_RATING_THRESHOLD).astype(int)
     used["compliant"] = (used["pred_label"] == used["target_label"]).astype(int)
     used["word_count"] = used["generated_text"].apply(count_words)
@@ -99,8 +98,8 @@ def main() -> None:
         (used["word_count"] >= MIN_WORDS) & (used["word_count"] <= MAX_WORDS)
     ).astype(int)
 
-    # --- Sauvegarde ---
-    # On ajoute le nom du modèle au préfixe pour ne pas écraser les résultats
+    # sauvegarde
+    # on ajoute le nom du modèle au préfixe pour ne pas écraser les résultats
     final_prefix = f"{args.prefix}_{args.model}"
     
     out_rows_path = EVAL_DIR / f"{final_prefix}_rows.csv"

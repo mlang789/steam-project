@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 
+# ajout du chemin racine pour trouver src.config
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 import pandas as pd
@@ -9,15 +10,14 @@ from src.config import FILES, GENAI_INPUTS_DIR
 DATA_PATH = FILES["train"]["final"]
 OUT_PATH = GENAI_INPUTS_DIR / "prompt_batch.csv"
 
-# How many prompts per game per rating (positive/negative)
+# nombre de prompts à générer par jeu et par type de note
 N_PER_GAME_PER_RATING = 1000
 
-# Ratings used in your dataset
+# notes utilisées dans le dataset
 POS_RATING = 9
 NEG_RATING = 3
 
-
-# Steam app IDs for the 5 games in the project (used to attach descriptions reliably)
+# descriptions manuelles associées aux identifiants steam
 GAME_DESCRIPTIONS_BY_APP_ID = {
     570: (
         "Dota 2 is a free-to-play 5v5 MOBA where two teams fight to destroy the enemy Ancient. "
@@ -41,7 +41,7 @@ GAME_DESCRIPTIONS_BY_APP_ID = {
     ),
 }
 
-# Fallback matching by title (in case app_id isn't reliable)
+# correspondance de secours via le titre si l'identifiant est manquant
 GAME_DESCRIPTIONS_BY_TITLE_KEYWORD = {
     "dota 2": GAME_DESCRIPTIONS_BY_APP_ID[570],
     "counter-strike 2": GAME_DESCRIPTIONS_BY_APP_ID[730],
@@ -52,30 +52,27 @@ GAME_DESCRIPTIONS_BY_TITLE_KEYWORD = {
     "elden ring": GAME_DESCRIPTIONS_BY_APP_ID[1245620],
 }
 
-
 def get_game_description(app_id: int, title: str) -> str:
-    # 1) Prefer app_id mapping
+    # 1. priorité à la correspondance par identifiant
     if app_id in GAME_DESCRIPTIONS_BY_APP_ID:
         return GAME_DESCRIPTIONS_BY_APP_ID[app_id]
 
-    # 2) Fallback: keyword match in title
+    # 2. recherche par mot-clé dans le titre
     title_l = (title or "").strip().lower()
     for k, desc in GAME_DESCRIPTIONS_BY_TITLE_KEYWORD.items():
         if k in title_l:
             return desc
 
-    # 3) If unknown, still return a generic hint
+    # 3. description générique par défaut
     return (
         "This is a video game on Steam. Write the review based on what a regular player would realistically experience."
     )
 
-
 def make_naive_prompt(title: str, rating: int) -> str:
     return f'Write a Steam user review for the game "{title}" with rating {rating}/10.'
 
-
 def make_engineered_prompt(title: str, rating: int, game_description: str) -> str:
-    # Keep the "2 points + 1 opposite point" structure, but make it feel less artificial
+    # structure : 2 points positifs et 1 négatif (ou l'inverse selon la note)
     if rating >= 7:
         point_guideline = (
             "Naturally include 2 things you genuinely liked and 1 thing you disliked (worked into the text, not as a list)."
@@ -105,7 +102,6 @@ def make_engineered_prompt(title: str, rating: int, game_description: str) -> st
         ]
     )
 
-
 def main() -> None:
     if not DATA_PATH.exists():
         raise FileNotFoundError(f"Missing file: {DATA_PATH}")
@@ -117,12 +113,12 @@ def main() -> None:
     if missing:
         raise ValueError(f"Missing columns in dataset: {sorted(missing)}")
 
-    # Keep only the ratings we expect (3 and 9)
+    # filtrage pour ne garder que les notes cibles
     df = df[df["rating"].isin([NEG_RATING, POS_RATING])].copy()
 
     rows = []
 
-    # Sample per (game, rating)
+    # échantillonnage par groupe de jeu et de note
     for (app_id, title, rating), group in df.groupby(
         ["app_id", "title", "rating"], dropna=False
     ):
@@ -132,13 +128,13 @@ def main() -> None:
 
         sampled = group.sample(n=sample_n, random_state=42)
 
-        # Precompute description once per group
+        # récupération de la description unique pour ce groupe
         safe_app_id = int(app_id) if pd.notna(app_id) else -1
         safe_title = str(title)
         game_desc = get_game_description(safe_app_id, safe_title)
 
         for _, _row in sampled.iterrows():
-            # Naive
+            # génération du prompt naïf
             rows.append(
                 {
                     "app_id": safe_app_id,
@@ -150,7 +146,7 @@ def main() -> None:
                 }
             )
 
-            # Engineered
+            # génération du prompt travaillé
             rows.append(
                 {
                     "app_id": safe_app_id,
@@ -167,7 +163,6 @@ def main() -> None:
     out_df.to_csv(OUT_PATH, index=False, encoding="utf-8")
     print(f"Saved {OUT_PATH} with shape: {out_df.shape}")
     print(out_df.head(6).to_string(index=False))
-
 
 if __name__ == "__main__":
     main()

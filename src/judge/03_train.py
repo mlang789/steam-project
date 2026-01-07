@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+# Ajout du chemin racine pour trouver src.config
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 import argparse
@@ -15,33 +16,26 @@ from sentence_transformers import SentenceTransformer
 from src.config import FILES, MODELS_DIR, EVAL_DIR
 from src.utils import SBERTEmbedder
 
-class SBERTEmbedder:
-    def __init__(self, model_name="sentence-transformers/all-MiniLM-L6-v2"):
-        self.model = SentenceTransformer(model_name)
-
-    def fit(self, X, y=None):
-        return self
-
-    def transform(self, X):
-        return self.model.encode(list(X), show_progress_bar=True)
-
-
 def main():
+    # On fixe la seed pour la reproductibilité
     np.random.seed(42)
 
     parser = argparse.ArgumentParser(description="Entraîner un modèle Juge (SBERT ou TF-IDF)")
     parser.add_argument("--model", type=str, choices=["sbert", "tfidf"], default="sbert")
     args = parser.parse_args()
 
-    # --- Chargement du dataset TRAIN ---
+    # --- Chargement du dataset train ---
     df_train = pd.read_csv(FILES["train"]["final"])
+    # Gestion des valeurs manquantes et conversion en string
     df_train["review_text"] = df_train["review_text"].fillna("").astype(str)
     X_train_full = df_train["review_text"]
+    # Création de la cible binaire (positif si note > 5)
     y_train_full = (df_train["rating"] > 5).astype(int)
 
     # --- Définition du modèle ---
     base_clf = LinearSVC(class_weight="balanced", max_iter=5000, random_state=42)
 
+    # Construction du pipeline selon l'argument passé
     if args.model == "sbert":
         steps = [
             ("embed", SBERTEmbedder()),
@@ -59,14 +53,14 @@ def main():
     print("Entraînement sur tout le dataset TRAIN...")
     pipe.fit(X_train_full, y_train_full)
 
-    # --- Chargement du dataset VALIDATION finale ---
+    # --- Chargement du dataset validation finale ---
     df_val = pd.read_csv(FILES["validation"]["final"])
     df_val["review_text"] = df_val["review_text"].fillna("").astype(str)
     X_val = df_val["review_text"]
     y_val = (df_val["rating"] > 5).astype(int)
 
-    # --- Évaluation ---
-    # Seuil implicite = 0
+    # --- Evaluation ---
+    # on récupère les scores de décision pour calculer l'auc
     if args.model == "sbert":
         scores = pipe.named_steps['clf'].decision_function(pipe.named_steps['embed'].transform(X_val))
     else:
@@ -96,7 +90,6 @@ def main():
     out_path = MODELS_DIR / f"judge_model_{args.model}.joblib"
     joblib.dump(pipe, out_path)
     print(f"Modèle sauvegardé sous : {out_path}")
-
 
 if __name__ == "__main__":
     main()

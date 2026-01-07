@@ -1,0 +1,18 @@
+{
+  "game": "Dota 2",
+  "total_reviews_checked": 50,
+  "real_spoiler_count": 0,
+  "fake_spoiler_count": 2,
+  "fake_spoiler_percentage": "4%",
+  "fake_spoiler_ids": [38, 49],
+  "analysis": "Aucun vrai spoiler car le jeu est un MOBA sans fin narrative. Cependant, 2 revues contiennent des 'hallucinations narratives'. L'ID 49 est la plus flagrante, l'IA affirmant avoir joué 'du début à la fin' (start to finish), traitant le jeu comme une aventure solo linéaire. L'ID 38 invente un point de 'lore' historique faux sur un héros originel tout-puissant pour justifier l'intrigue du jeu actuel."
+}
+{
+  "game": "Cyberpunk 2077",
+  "total_reviews_checked": 50,
+  "real_spoiler_count": 0,
+  "fake_spoiler_count": 5,
+  "fake_spoiler_percentage": "10%",
+  "fake_spoiler_ids": [2, 9, 30, 45, 47],
+  "analysis": "Aucune révélation sur l'intrigue réelle (Johnny Silverhand, Arasaka, fins multiples). L'IA a cependant généré 5 'faux spoilers' ou hallucinations majeures de contenu. L'ID 2 invente un script de dialogue avec des personnages nommés 'Jack' et 'John'. L'ID 30 prétend avoir vécu toute l'histoire 'en tant que PNJ'. L'ID 47 affirme qu'on peut jouer 'différents personnages à différents âges'. L'ID 45 est une hallucination critique : la revue spoile/critique l'histoire de 'Dota 6' alors qu'elle est listée sous Cyberpunk."
+}

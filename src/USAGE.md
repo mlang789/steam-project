@@ -1,16 +1,17 @@
 # Documentation Complète du Projet : Steam Reviews GenAI
 
-Ce projet est un pipeline complet de Machine Learning et d'IA Générative.
-Il est structuré en 3 grandes phases :
+Ce projet est un pipeline complet de Machine Learning et d'IA Générative. Il est structuré en 4 grandes phases :
+
 1.  **Data Engineering** : Collecte et préparation des données Steam.
 2.  **Juge IA** : Entraînement de classifieurs (SBERT & TF-IDF) pour évaluer la qualité.
 3.  **GenAI** : Fine-tuning d'un LLM et génération de reviews.
+4.  **Évaluation** : Analyse de la qualité, de la diversité et du réalisme des textes générés.
 
 ---
 
 ## Structure du Projet
 
-Voici l'organisation des fichiers :
+Voici l'organisation globale des fichiers :
 
 ```text
 steam-project/
@@ -18,16 +19,20 @@ steam-project/
 │   ├── raw/                   # JSON/CSV bruts de l'API Steam
 │   ├── processed/             # Données nettoyées (dataset_train.csv, titles.csv)
 │   └── outputs_gen_ai_models/ # Réception des fichiers venant de Colab
+├── evaluation/                # Sorties spécifiques aux scripts d'évaluation
+│   ├── csv/                   # Résultats intermédiaires (SBERT, JSON manuel)
+│   └── prompts/               # Fichiers textes pour évaluation par LLM externe
 ├── reports/                   # Artefacts et Résultats
 │   ├── models/                # Modèles du Juge (.joblib)
 │   ├── genai_inputs/          # Fichiers d'entrée pour le LLM (prompts, jsonl)
-│   └── evaluation/            # Rapports de performance
+│   └── results/               # Rapports de performance (Markdown)
 ├── src/                       # Code Source
 │   ├── config.py              # Configuration globale
 │   ├── utils.py               # Utilitaires (SBERT, etc.)
 │   ├── data/                  # Pipeline ETL (Extract-Transform-Load)
 │   ├── judge/                 # Classification (Le Juge)
-│   └── genai/                 # Pipeline genai (Entrainement & Inférence)
+│   ├── genai/                 # Pipeline GenAI (Entraînement & Inférence)
+│   └── evaluation/            # Scripts d'analyse (Qualité, Diversité, Réalisme)
 ```
 
 ---
@@ -64,7 +69,7 @@ Nettoie les textes, fusionne avec les titres, et convertit le vote (recommandé/
 
 ---
 
-## Phase 2 : Entraînement du Juge   
+## Phase 2 : Entraînement du Juge
 
 Création d'une IA capable de dire si une review est positive ou négative. Nous entraînons deux versions pour comparer l'évaluation.
 
@@ -114,9 +119,7 @@ Transforme les vraies reviews en format JSONL pour ré-entraîner le LLM (Instru
     ```
 *   **Output :** `reports/genai_inputs/sft_train.jsonl`
 
----
-
-### Étape 5 : Exécution sur Google Colab (GPU requis) 
+### Étape 5 : Exécution sur Google Colab (GPU requis)
 
 Utilisez les fichiers générés à l'étape 4.
 
@@ -133,9 +136,7 @@ Utilisez les fichiers générés à l'étape 4.
     *   `generated_reviews_finetuned.csv`
 3.  **Download :** Téléchargez ces 3 fichiers sur votre ordinateur local.
 
----
-
-### Étape 6 : Consolidation et Évaluation (Local)
+### Étape 6 : Consolidation (Local)
 
 #### C. Fusion des Résultats (`06_merge_outputs.py`)
 1.  **Action :** Placez les 3 fichiers CSV du Colab dans `data/outputs_genai_models/`.
@@ -145,20 +146,81 @@ Utilisez les fichiers générés à l'étape 4.
     ```
 3.  **Output :** `reports/genai_inputs/prompt_batch_filled.csv`
 
-#### D. Évaluation Finale (`07_evaluate.py`)
-Le "Juge" note automatiquement vos reviews générées. Vous pouvez choisir quel juge utiliser.
+---
 
-*   **Avec le juge SBERT (Sémantique) :**
-    ```bash
-    python src/genai/07_evaluate.py --prefix eval_finale --model sbert
-    ```
-    *Output : `reports/evaluation/eval_finale_sbert_summary.csv`*
+## Phase 4 : Suite d'Évaluation
 
-*   **Avec le juge TF-IDF (Mots-clés) :**
-    ```bash
-    python src/genai/evaluate_generations.py --prefix eval_finale --model tfidf
-    ```
-    *Output : `reports/evaluation/eval_finale_tfidf_summary.csv`*
+Cette phase utilise les scripts situés dans `src/evaluation/` pour analyser la qualité, la diversité et le réalisme des reviews générées.
+
+**Pré-requis** :
+```bash
+pip install pandas numpy requests tqdm scikit-learn sentence-transformers tabulate
+```
+
+### Étape 7 : Évaluation de la Qualité & Jugement LLM (`08_evaluate_quality.py`)
+
+Ce script génère des prompts pour qu'un "Juge IA" externe (ex: GPT-4) détecte les hallucinations ou erreurs, et prépare la comparaison avec le Juge SBERT interne.
+
+**Syntaxe :**
+```bash
+python src/evaluation/08_evaluate_quality.py [TACHE]
+```
+
+**Tâches Disponibles :**
+
+| Argument | Description | Sorties (dans `evaluation/`) |
+| :--- | :--- | :--- |
+| `all` | Exécute toutes les générations de prompts + préparation SBERT. | Tous les fichiers ci-dessous. |
+| `hallucination` | Prompts pour détecter les faits inventés. | `prompts/batch_hallucination_*.txt` |
+| `structure` | Prompts pour vérifier la règle structurelle. | `prompts/batch_structure_*.txt` |
+| `spoiler` | Prompts pour détecter les spoilers narratifs. | `prompts/batch_spoiler_*.txt` |
+| `sentiment` | Prompts pour vérifier l'alignement note/texte. | `prompts/batch_sentiment_naive.txt` |
+| `sbert_prep` | Prépare l'échantillon pour l'évaluation SBERT. | `prompts/prompt_judge_sbert_300.txt`<br>`csv/sbert_subset_300_stratified.csv` |
+| `sbert_eval` | Compare les prédictions SBERT vs Juge externe. | `csv/sbert_evaluation_results_300.csv` |
+
+**Workflow Spécifique : Évaluation SBERT**
+1.  Lancer `python src/evaluation/08_evaluate_quality.py sbert_prep`.
+2.  Copier le contenu de `evaluation/prompts/prompt_judge_sbert_300.txt` dans ChatGPT/Claude.
+3.  Récupérer **uniquement** le JSON de réponse et le sauvegarder sous `evaluation/csv/judge_labels_300.json`.
+4.  Lancer `python src/evaluation/08_evaluate_quality.py sbert_eval`.
+
+### Étape 8 : Évaluation de la Diversité (`09_evaluate_diversity.py`)
+
+Mesure la richesse du vocabulaire (n-grams) et la redondance sémantique entre les reviews générées pour vérifier si le modèle se répète.
+
+**Exemple complet :**
+```bash
+python src/evaluation/09_evaluate_diversity.py \
+  --input reports/genai_inputs/prompt_batch_filled.csv \
+  --inter-sim \
+  --save \
+  --prefix "Comparaison Naive vs Engineered"
+```
+
+**Arguments Clés :**
+*   `--inter-sim` : Active l'analyse sémantique SBERT (recommandé).
+*   `--save` : Ajoute les résultats au rapport `reports/results/results_diversity.md`.
+*   `--prefix` : Nom de l'expérience dans le rapport.
+
+### Étape 9 : Évaluation du Réalisme & Plagiat (`10_evaluate_realism.py`)
+
+Compare les reviews générées avec une base de "vraies" reviews Steam (Ground Truth) pour mesurer la proximité sémantique et vérifier l'absence de plagiat pur.
+
+**Exemple complet :**
+```bash
+python src/evaluation/10_evaluate_realism.py \
+  --gen reports/genai_inputs/prompt_batch_filled.csv \
+  --real data/raw/reviews_raw_train.csv \
+  --max-real 2000 \
+  --save \
+  --prefix "Test de Réalisme V1"
+```
+
+**Arguments Clés :**
+*   `--gen` : Fichier des reviews générées.
+*   `--real` : Fichier des reviews réelles.
+*   `--max-real` : Limite le nombre de reviews réelles utilisées (conseillé : 2000).
+*   `--save` : Ajoute les résultats au rapport `reports/results/results_realism.md`.
 
 ---
 
@@ -169,7 +231,6 @@ graph TD
     A[API Steam] -->|src/data_pipeline| B(data/processed/dataset_train.csv)
     
     B -->|src/judge| C[reports/models/judge_model_sbert.joblib]
-    B -->|src/judge| D[reports/models/judge_model_tfidf.joblib]
     
     B -->|src/genai| E[reports/genai_inputs/sft_train.jsonl]
     B -->|src/genai| F[reports/genai_inputs/prompt_batch.csv]
@@ -178,6 +239,7 @@ graph TD
     
     G -->|src/genai/merge| H(prompt_batch_filled.csv)
     
-    H & C -->|src/genai/eval| I[Rapport SBERT]
-    H & D -->|src/genai/eval| J[Rapport TF-IDF]
+    H & C -->|src/evaluation/quality| I[Rapport Qualité SBERT]
+    H -->|src/evaluation/diversity| J[Rapport Diversité]
+    H & B -->|src/evaluation/realism| K[Rapport Réalisme]
 ```

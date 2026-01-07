@@ -1,44 +1,38 @@
-# ======================
-# Python / virtual env
-# ======================
-venv/
-big_env/
+# python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
 env/
+venv/
+.env
+deump/
 
-# ======================
-# Data files
-# ======================
-data/raw/
-data/processed/
-*.csv
+# jupyter notebooks
+.ipynb_checkpoints
 
-# ======================
-# Notebooks
-# ======================
-.ipynb_checkpoints/
+# données du projet (selon ta structure src/config.py)
+# on ignore le contenu mais on peut garder les dossiers avec .gitkeep si besoin
+data/raw/*
+data/processed/*
+data/outputs_gen_ai_models/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
 
-# ======================
-# OS / IDE
-# ======================
-.DS_Store
-Thumbs.db
+# rapports et artefacts générés
+reports/models/*
+reports/results/*
+reports/genai_inputs/*.csv
+reports/genai_inputs/*.jsonl
+!reports/models/.gitkeep
+!reports/results/.gitkeep
+
+# ide et système
+.idea/
 .vscode/
+*.swp
+.DS_Store
 
-# Reports & generated outputs
-# =========================
-*.csv
-*.txt
-*.joblib
-*.jsonl
-
-# =========================
-# Notebooks checkpoints
-# =========================
-.ipynb_checkpoints/
-*.ipynb
-# =========================
-# OS / Editor
-
-dump/
+# logs potentiels
+*.log
